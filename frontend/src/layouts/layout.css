@@ -1,0 +1,317 @@
+.app-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background: rgba(248, 250, 247, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.app-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  min-height: 68px;
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: var(--space-sm) var(--space-lg);
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: var(--font-size-lg);
+  font-weight: 800;
+  color: var(--color-primary-700);
+  text-decoration: none;
+  letter-spacing: 0.01em;
+  flex-shrink: 0;
+}
+
+.app-brand__mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: var(--radius-md);
+  background: var(--color-primary-700);
+  color: var(--color-text-inverse);
+}
+
+/* --- Desktop horizontal nav --- */
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.app-nav--desktop {
+  display: none;
+  flex: 1;
+  justify-content: center;
+  gap: 0.2rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  position: relative;
+}
+
+.app-nav--desktop::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .app-nav--desktop {
+    display: flex;
+  }
+}
+
+.app-nav__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.app-nav__link:hover {
+  color: var(--color-primary-700);
+  background: var(--color-primary-50);
+}
+
+.app-nav__link.is-active {
+  color: var(--color-primary-700);
+  background: var(--color-primary-100);
+}
+
+/* --- "More" dropdown --- */
+.app-nav__more {
+  position: relative;
+}
+
+.app-nav__more-menu {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lift);
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 200px;
+  z-index: 40;
+}
+
+.app-nav__more-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-text);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.app-nav__more-link:hover,
+.app-nav__more-link.is-active {
+  background: var(--color-primary-50);
+  color: var(--color-primary-700);
+}
+
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-shrink: 0;
+}
+
+.app-nav__user {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.app-nav__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.app-nav__user--desktop {
+  display: none;
+}
+
+.app-nav__logout--desktop {
+  display: none;
+}
+
+@media (min-width: 1200px) {
+  .app-nav__user--desktop,
+  .app-nav__logout--desktop {
+    display: inline-flex;
+  }
+}
+
+/* --- Mobile/tablet hamburger toggle --- */
+.app-nav__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-primary-700);
+  cursor: pointer;
+}
+
+@media (min-width: 1200px) {
+  .app-nav__toggle {
+    display: none;
+  }
+}
+
+/* --- Mobile/tablet dropdown drawer --- */
+.app-nav__drawer {
+  max-height: 0;
+  overflow: hidden;
+  border-top: 1px solid transparent;
+  background: var(--color-surface);
+  transition: max-height 0.25s ease, border-color 0.25s ease;
+}
+
+.app-nav__drawer.is-open {
+  max-height: 80vh;
+  overflow-y: auto;
+  border-top-color: var(--color-border);
+}
+
+@media (min-width: 1200px) {
+  .app-nav__drawer {
+    display: none;
+  }
+}
+
+.app-nav__drawer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: var(--space-md) var(--space-lg);
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.app-nav__drawer-links .app-nav__link {
+  font-size: 0.95rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-md);
+  justify-content: flex-start;
+}
+
+.app-nav__drawer-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg) var(--space-lg);
+  border-top: 1px solid var(--color-border);
+  max-width: 1500px;
+  margin: 0 auto;
+}
+
+.app-content {
+  flex: 1;
+  width: 100%;
+}
+
+/* --- Footer --- */
+.app-footer {
+  background: var(--color-primary-800);
+  color: rgba(255, 255, 255, 0.72);
+  margin-top: var(--space-2xl);
+}
+
+.app-footer__inner {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-xl);
+  padding: var(--space-2xl) var(--space-lg) var(--space-lg);
+}
+
+.app-footer__brand .app-brand--footer {
+  color: var(--color-text-inverse);
+}
+
+.app-footer__brand .app-brand__mark {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.app-footer__brand p {
+  margin-top: var(--space-sm);
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.app-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-lg);
+}
+
+.app-footer__links a {
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.app-footer__links a:hover {
+  color: var(--color-text-inverse);
+}
+
+.app-footer__legal {
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  padding: var(--space-md) 0 var(--space-lg);
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  max-width: 880px;
+}

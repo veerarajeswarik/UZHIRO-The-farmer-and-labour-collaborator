@@ -1,0 +1,391 @@
+/*
+ * UZHIRO design tokens - premium AgriTech visual system.
+ * Deep/fresh greens on a warm cream base, generous rounding, soft shadows.
+ * Every page builds on these shared tokens + utility classes instead of
+ * one-off styles.
+ */
+:root {
+  /* Greens */
+  --color-primary-50: #f0fdf4;
+  --color-primary-100: #dcfce7;
+  --color-primary-200: #bbf0d0;
+  --color-primary-400: #4ade80;
+  --color-primary-500: #22c55e;
+  --color-primary-600: #166534;
+  --color-primary-700: #14532d;
+  --color-primary-800: #0f3d21;
+
+  /* Earthy accents */
+  --color-accent-400: #c98a4b;
+  --color-accent-600: #9c631f;
+
+  /* Neutrals */
+  --color-bg: #f8faf7;
+  --color-cream: #f7f8f2;
+  --color-surface: #ffffff;
+  --color-border: #e2e8e3;
+  --color-text: #13251a;
+  --color-text-muted: #66736a;
+  --color-text-inverse: #ffffff;
+
+  /* Status */
+  --color-success: #166534;
+  --color-warning: #b8790f;
+  --color-danger: #b3261e;
+  --color-info: #2b6ca3;
+
+  /* Spacing scale */
+  --space-xs: 0.25rem;
+  --space-sm: 0.5rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-2xl: 3rem;
+  --space-3xl: 4.5rem;
+
+  /* Radii */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.375rem;
+  --radius-xl: 1.75rem;
+  --radius-pill: 999px;
+
+  /* Shadow */
+  --shadow-soft: 0 1px 2px rgba(19, 37, 26, 0.04), 0 8px 24px -8px rgba(19, 37, 26, 0.10);
+  --shadow-card: var(--shadow-soft);
+  --shadow-lift: 0 4px 8px rgba(19, 37, 26, 0.06), 0 16px 32px -12px rgba(19, 37, 26, 0.18);
+
+  /* Typography */
+  --font-base: 'Manrope', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.5rem;
+  --font-size-2xl: 2rem;
+  --font-size-3xl: 2.75rem;
+  --font-size-4xl: 3.5rem;
+
+  --container-max: 1280px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-base);
+  font-size: var(--font-size-base);
+  line-height: 1.6;
+  /* Pages must always scroll normally - never trap content. */
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--color-primary-600);
+}
+
+button {
+  font-family: inherit;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* ---------------- Layout helpers ---------------- */
+
+.container {
+  width: 100%;
+  max-width: var(--container-max);
+  margin: 0 auto;
+  padding: 0 var(--space-lg);
+}
+
+.section {
+  padding: var(--space-2xl) 0;
+}
+
+.section--cream {
+  background: var(--color-cream);
+}
+
+.section--surface {
+  background: var(--color-surface);
+}
+
+.section--dark {
+  background: var(--color-primary-800);
+  color: var(--color-text-inverse);
+}
+
+.grid-auto {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-lg);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-lg);
+}
+
+@media (max-width: 720px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------------- Buttons ---------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: 0.7rem 1.4rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease,
+    transform 0.05s ease, box-shadow 0.18s ease;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: 0.45rem 1rem;
+  font-size: 0.8125rem;
+}
+
+.btn-lg {
+  padding: 0.9rem 1.85rem;
+  font-size: 1rem;
+}
+
+.btn-primary {
+  background: var(--color-primary-700);
+  color: var(--color-text-inverse);
+  box-shadow: var(--shadow-soft);
+}
+
+.btn-primary:hover {
+  background: var(--color-primary-600);
+}
+
+.btn-secondary {
+  background: var(--color-surface);
+  color: var(--color-primary-700);
+  border-color: var(--color-primary-200);
+}
+
+.btn-secondary:hover {
+  background: var(--color-primary-50);
+  border-color: var(--color-primary-500);
+}
+
+.btn-outline {
+  background: transparent;
+  color: var(--color-text-muted);
+  border-color: var(--color-border);
+}
+
+.btn-outline:hover {
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+  background: rgba(179, 38, 30, 0.05);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-primary-700);
+  border-color: transparent;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.btn-ghost:hover {
+  color: var(--color-primary-500);
+}
+
+.btn-on-dark {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-text-inverse);
+  border-color: rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(6px);
+}
+
+.btn-on-dark:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* ---------------- Cards ---------------- */
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: var(--space-lg);
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.card-hover:hover {
+  box-shadow: var(--shadow-lift);
+  transform: translateY(-3px);
+  border-color: var(--color-primary-200);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  padding: var(--space-lg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--color-text-inverse);
+}
+
+/* ---------------- Badges / eyebrow ---------------- */
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.eyebrow::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-primary-500);
+}
+
+.eyebrow-on-dark {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--color-text-inverse);
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--color-border);
+  color: var(--color-text);
+}
+
+.badge--success {
+  background: var(--color-primary-100);
+  color: var(--color-primary-700);
+}
+
+.badge--warning {
+  background: #fdf1dd;
+  color: var(--color-warning);
+}
+
+.badge--danger {
+  background: #fbe6e4;
+  color: var(--color-danger);
+}
+
+.badge--info {
+  background: #e2eef7;
+  color: var(--color-info);
+}
+
+.badge--neutral {
+  background: var(--color-cream);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+/* ---------------- Misc ---------------- */
+
+.spinner {
+  display: inline-block;
+  width: 1.1rem;
+  height: 1.1rem;
+  border: 2px solid var(--color-primary-200);
+  border-top-color: var(--color-primary-600);
+  border-radius: 50%;
+  animation: uzhiro-spin 0.7s linear infinite;
+}
+
+@keyframes uzhiro-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes uzhiro-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-up {
+  animation: uzhiro-fade-up 0.5s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 1.6s;
+  }
+  .fade-up {
+    animation: none;
+  }
+}
