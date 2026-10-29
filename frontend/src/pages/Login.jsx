@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { friendlyError } from '../services/errors';
 
 function Login() {
   const { login } = useAuth();
@@ -24,7 +25,8 @@ function Login() {
       await login(form);
       navigate(redirectTo, { replace: true });
     } catch (err) {
-      setError(err.message);
+      // 401/403 here mean wrong credentials / deactivated account - show the server's message.
+      setError(friendlyError(err, 'Your account', { passThrough: [401, 403] }));
     } finally {
       setSubmitting(false);
     }

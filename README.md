@@ -406,43 +406,59 @@ don't trip the same limits a real client would hit.
   crop/product name, labourer work types/availability, task due date,
   hiring request status, etc.) - see each model file.
 
-## Deployment
+## Deployment (Netlify + Render + MongoDB Atlas)
 
-This is a prototype-grade deployment guide, not a hardened production
-runbook - review the Security notes above and your hosting provider's
-guidance before going live with real user data.
+Netlify only hosts static sites, so UZHIRO is deployed in three parts:
 
-**Backend** (plain Node/Express, no build step):
-```bash
-cd backend
-npm install --omit=dev
-NODE_ENV=production npm start
-```
-- Requires a real MongoDB (Atlas or self-hosted), a strong `JWT_SECRET`
-  (32+ random characters - the app refuses to start in production
-  without one), and `CLIENT_URL` set to your deployed frontend's origin.
-- Run behind a process manager (e.g. PM2, systemd) and a reverse proxy
-  (e.g. Nginx) that terminates TLS; the app itself serves plain HTTP.
-- Optional integrations activate only when their key is set:
-  `AGMARKNET_API_KEY` (live market prices) and `ANTHROPIC_API_KEY` (AI
-  assistant) - both are designed to degrade gracefully and never fabricate
-  data when unset, so deploying without them is safe, just less capable.
-- Seed reference data after first deploy: `npm run seed:crops`, `npm run
-  seed:products`, `npm run seed:learning`, `npm run seed:schemes` (and
-  optionally `npm run seed:labourers` for demo marketplace data), then
-  `npm run create:admin -- <email> <password> ...`.
+| Part | Host | Config in repo |
+|---|---|---|
+| Frontend (React/Vite) | Netlify | `netlify.toml` |
+| Backend API (Express) | Render Web Service | `render.yaml` |
+| Database | MongoDB Atlas | - |
 
-**Frontend** (static build):
-```bash
-cd frontend
-npm install
-VITE_API_URL=https://your-api-domain.com/api npm run build
-```
-- Outputs static files to `frontend/dist/` - deploy to any static host
-  (Netlify, Vercel, S3+CloudFront, Nginx, etc.).
-- Because this is a client-side-routed SPA, the host must rewrite unknown
-  paths to `index.html` (e.g. Netlify's `_redirects`, Vercel's
-  `rewrites`, or Nginx `try_files ... /index.html`).
+### 1. Database - MongoDB Atlas
+1. Create a free cluster, a database user with a strong password, and allow
+   network access from Render (Atlas > Network Access > `0.0.0.0/0` on the
+   free tier; keep the DB password strong).
+2. Copy the connection string: `mongodb+srv://<user>:<password>@<cluster>/uzhiro`.
+3. Seed reference data once, from your machine:
+   ```bash
+   cd backend
+   MONGODB_URI="mongodb+srv://..." npm run seed:crops
+   MONGODB_URI="mongodb+srv://..." npm run seed:products
+   MONGODB_URI="mongodb+srv://..." npm run seed:learning
+   MONGODB_URI="mongodb+srv://..." npm run seed:schemes
+   MONGODB_URI="mongodb+srv://..." npm run create:admin -- <email> <strong-password> ...
+   ```
+   `seed:labourers` creates **demo** labourer accounts with the shared password
+   `Demo@1234` - only run it for a demo, never on a real production site.
+
+### 2. Backend - Render
+1. Render > New > **Blueprint** > select this repo (uses `render.yaml`).
+2. Fill in the dashboard env vars: `MONGODB_URI`, `CLIENT_URL` (your Netlify
+   URL, set after step 3 - e.g. `https://uzhiro.netlify.app`), and optionally
+   `ANTHROPIC_API_KEY` / `AGMARKNET_API_KEY`. `JWT_SECRET` is generated for you.
+3. Check `https://<your-service>.onrender.com/api/health` returns `"database":"connected"`.
+- The server refuses to start in production without `MONGODB_URI`,
+  `CLIENT_URL` or a strong `JWT_SECRET`.
+- Render's free tier sleeps after inactivity; the first request can take
+  ~50 seconds. The app shows "the server may be starting up" instead of failing silently.
+
+### 3. Frontend - Netlify
+1. Netlify > Add new site > Import from Git > this repo (`netlify.toml` sets
+   base `frontend`, build `npm run build`, publish `dist`, SPA redirects).
+2. Site configuration > Environment variables:
+   `VITE_API_URL = https://<your-service>.onrender.com/api`
+   (the production build fails on purpose if this is missing or points to localhost).
+3. Deploy, then put the final Netlify URL into Render's `CLIENT_URL` and redeploy the API.
+
+### Secrets checklist
+- Secrets live **only** in Render's environment settings: `MONGODB_URI`,
+  `JWT_SECRET`, `ANTHROPIC_API_KEY`, `AGMARKNET_API_KEY`.
+- Netlify gets only `VITE_API_URL`, which is public. Anything named `VITE_*`
+  ends up in the browser - never put a secret there.
+- `.env` files are gitignored; never commit them. If a key was ever shared or
+  committed, rotate it at its provider.
 
 ## Data honesty
 

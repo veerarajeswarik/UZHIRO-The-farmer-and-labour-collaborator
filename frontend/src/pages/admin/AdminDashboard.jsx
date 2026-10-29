@@ -1,15 +1,26 @@
 import { useEffect, useState } from 'react';
+import {
+  Users,
+  Tractor,
+  HardHat,
+  ShieldCheck,
+  UserCheck,
+  UserX,
+  Wheat,
+  Package,
+  BookOpen,
+  Landmark,
+  CalendarCheck,
+  LineChart,
+  ClipboardList,
+} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { getReports } from '../../services/adminService';
-
-function StatCard({ label, value }) {
-  return (
-    <div className="card">
-      <p className="form-hint">{label}</p>
-      <p style={{ fontSize: 'var(--font-size-2xl)', fontWeight: 700 }}>{value}</p>
-    </div>
-  );
-}
+import { Section } from '../../components/Page';
+import StatCard from '../../components/StatCard';
+import Card from '../../components/Card';
+import { ErrorState } from '../../components/EmptyState';
+import LoadingState from '../../components/LoadingState';
 
 function AdminDashboard() {
   const { token } = useAuth();
@@ -29,35 +40,47 @@ function AdminDashboard() {
       });
   }, [token]);
 
-  if (status === 'loading') return <p>Loading reports...</p>;
-  if (status === 'error') return <p className="form-error">Unable to load reports. {error}</p>;
+  if (status === 'loading') return <LoadingState label="Loading reports..." />;
+  if (status === 'error')
+    return (
+      <Card>
+        <ErrorState title="Unable to load reports" message={error} />
+      </Card>
+    );
 
   return (
     <>
-      <h2>Platform overview</h2>
       <p className="form-hint">Live counts from the database, generated at {new Date(report.generatedAt).toLocaleString('en-IN')}.</p>
 
-      <div className="crop-grid" style={{ marginTop: 'var(--space-md)' }}>
-        <StatCard label="Total users" value={report.users.total} />
-        <StatCard label="Farmers" value={report.users.farmers} />
-        <StatCard label="Labourers" value={report.users.labourers} />
-        <StatCard label="Admins" value={report.users.admins} />
-        <StatCard label="Active users" value={report.users.active} />
-        <StatCard label="Inactive users" value={report.users.inactive} />
-        <StatCard label="Crops in catalog" value={report.content.crops} />
-        <StatCard label="Products in catalog" value={report.content.products} />
-        <StatCard label="Learning articles" value={report.content.learningArticles} />
-        <StatCard label="Government schemes" value={report.content.schemes} />
-        <StatCard label="Farm tasks" value={report.activity.farmTasks} />
-        <StatCard label="Market price records" value={report.activity.marketPriceRecords} />
-      </div>
+      <Section title="Users">
+        <div className="stat-grid">
+          <StatCard icon={Users} label="Total users" value={report.users.total} />
+          <StatCard icon={Tractor} label="Farmers" value={report.users.farmers} />
+          <StatCard icon={HardHat} label="Labourers" value={report.users.labourers} />
+          <StatCard icon={ShieldCheck} label="Admins" value={report.users.admins} />
+          <StatCard icon={UserCheck} label="Active users" value={report.users.active} />
+          <StatCard icon={UserX} label="Inactive users" value={report.users.inactive} />
+        </div>
+      </Section>
 
-      <h2 style={{ marginTop: 'var(--space-xl)' }}>Hiring requests by status</h2>
-      <div className="crop-grid" style={{ marginTop: 'var(--space-md)' }}>
-        {Object.entries(report.activity.hiringRequestsByStatus).map(([status2, count]) => (
-          <StatCard key={status2} label={status2} value={count} />
-        ))}
-      </div>
+      <Section title="Content & activity">
+        <div className="stat-grid">
+          <StatCard icon={Wheat} label="Crops in catalog" value={report.content.crops} />
+          <StatCard icon={Package} label="Products in catalog" value={report.content.products} />
+          <StatCard icon={BookOpen} label="Learning articles" value={report.content.learningArticles} />
+          <StatCard icon={Landmark} label="Government schemes" value={report.content.schemes} />
+          <StatCard icon={CalendarCheck} label="Farm tasks" value={report.activity.farmTasks} />
+          <StatCard icon={LineChart} label="Market price records" value={report.activity.marketPriceRecords} />
+        </div>
+      </Section>
+
+      <Section title="Hiring requests by status">
+        <div className="stat-grid">
+          {Object.entries(report.activity.hiringRequestsByStatus).map(([status2, count]) => (
+            <StatCard key={status2} icon={ClipboardList} label={status2} value={count} />
+          ))}
+        </div>
+      </Section>
     </>
   );
 }

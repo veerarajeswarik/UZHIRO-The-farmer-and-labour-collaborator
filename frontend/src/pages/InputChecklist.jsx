@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { Sprout, ShoppingCart, Package, ExternalLink } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getCrops } from '../services/cropService';
 import { getFarmerProfile } from '../services/farmerService';
 import { getInputChecklist } from '../services/productService';
+import { friendlyError } from '../services/errors';
+import Page, { Section } from '../components/Page';
 import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
+import IconTile from '../components/IconTile';
+import FilterBar, { FilterChips } from '../components/FilterBar';
+import SearchBar from '../components/SearchBar';
+import SkeletonGrid from '../components/Skeleton';
+import { StatusBadge } from '../components/Badge';
+import EmptyState, { ErrorState } from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 
 function currency(n) {
@@ -27,6 +36,10 @@ function InputChecklist() {
   const [checklistStatus, setChecklistStatus] = useState('idle'); // idle | loading | ready | error
   const [checklistError, setChecklistError] = useState('');
 
+  // Display-only refinement of the loaded list.
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('All');
+
   useEffect(() => {
     let cancelled = false;
     Promise.all([getCrops(), getFarmerProfile(token).catch(() => null)])
@@ -40,7 +53,7 @@ function InputChecklist() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setLoadError(err.message);
+          setLoadError(friendlyError(err, 'Crops'));
           setStatus('error');
         }
       });
@@ -62,7 +75,7 @@ function InputChecklist() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setChecklistError(err.message);
+        setChecklistError(friendlyError(err, 'This input list'));
         setChecklistStatus('error');
       });
     return () => {
@@ -74,32 +87,57 @@ function InputChecklist() {
   function handleCropChange(e) {
     const id = e.target.value;
     setCropId(id);
+    setCategory('All');
     setSearchParams(id ? { cropId: id } : {});
   }
 
+  const header = (
+    <PageHeader
+      eyebrow="Tools"
+      pillar="neutral"
+      title="Buy Inputs"
+      description="Find the seeds, fertilizer and crop protection your farm needs - with real purchase links where available."
+    />
+  );
+
   if (status === 'loading') {
-    return <LoadingState label="Loading crops..." />;
+    return (
+      <Page>
+        {header}
+        <LoadingState label="Loading crops..." />
+      </Page>
+    );
   }
 
   if (status === 'error') {
     return (
-      <div className="container error-state">
-        <p>Unable to load crops. {loadError}</p>
-      </div>
+      <Page>
+        {header}
+        <Card>
+          <ErrorState title="Unable to load crops" message={loadError} />
+        </Card>
+      </Page>
     );
   }
 
-  return (
-    <div>
-      <PageHeader
-        eyebrow="Buy Inputs"
-        title="Input shopping list"
-        description="See what seeds, fertilizer and crop protection you'll likely need, with real purchase links where available."
-      />
-      <div className="container" style={{ paddingBottom: '3rem' }}>
+  const items = checklist?.checklist || [];
+  const categories = ['All', ...items.map((i) => i.category)];
+  const q = query.trim().toLowerCase();
+  const visible = items.filter(
+    (item) =>
+      (category === 'All' || item.category === category) &&
+      (!q || item.category.toLowerCase().includes(q) || item.options.some((o) => o.name.toLowerCase().includes(q)))
+  );
 
-      <Card style={{ maxWidth: 480 }}>
-        <div className="form" style={{ maxWidth: '100%' }}>
+  return (
+    <Page>
+      {header}
+
+      <Card className="filter-card">
+        <Card.Header>
+          <Card.Title icon={Sprout}>What are you growing?</Card.Title>
+        </Card.Header>
+        <div className="form form-grid">
           <div className="form-field">
             <label htmlFor="crop">Crop</label>
             <select id="crop" value={cropId} onChange={handleCropChange}>
@@ -125,73 +163,99 @@ function InputChecklist() {
         </div>
       </Card>
 
-      {checklistStatus === 'loading' && <p style={{ marginTop: 'var(--space-lg)' }}>Calculating your shopping list...</p>}
+      <Section
+        title={
+          checklistStatus === 'ready' && checklist
+            ? `Inputs for ${checklist.crop.name} · ${checklist.landAreaAcres} acre${checklist.landAreaAcres === 1 ? '' : 's'}`
+            : 'Your input list'
+        }
+      >
+        {checklistStatus === 'idle' && (
+          <Card>
+            <EmptyState
+              icon={ShoppingCart}
+              title="Choose a crop to see your inputs"
+              description="Select a crop and your land area to get an estimated shopping list."
+            />
+          </Card>
+        )}
 
-      {checklistStatus === 'error' && (
-        <p className="form-error" style={{ marginTop: 'var(--space-lg)', maxWidth: 480 }}>
-          {checklistError}
-        </p>
-      )}
+        {checklistStatus === 'loading' && <SkeletonGrid count={3} label="Calculating your shopping list..." />}
 
-      {checklistStatus === 'ready' && checklist && (
-        <div style={{ marginTop: 'var(--space-lg)' }}>
-          <h2>
-            {checklist.crop.name} - {checklist.landAreaAcres} acre{checklist.landAreaAcres === 1 ? '' : 's'}
-          </h2>
+        {checklistStatus === 'error' && (
+          <Card>
+            <ErrorState title="Unable to build your input list" message={checklistError} />
+          </Card>
+        )}
 
-          <div className="crop-grid" style={{ marginTop: 'var(--space-md)' }}>
-            {checklist.checklist.map((item) => (
-              <div className="card card-hover" key={item.category}>
-                <div className="crop-card__header">
-                  <span className="crop-card__name">{item.category}</span>
-                  <span className={item.required ? 'badge badge-medium' : 'badge badge-low'}>
-                    {item.required ? 'Required' : 'Optional'}
-                  </span>
-                </div>
-                <p className="crop-card__score">{item.quantityLabel}</p>
-                <p style={{ fontWeight: 700 }}>
-                  Estimated cost: {item.estimatedCost != null ? currency(item.estimatedCost) : 'Not available'}
-                </p>
+        {checklistStatus === 'ready' && checklist && (
+          <>
+            {items.length > 0 && (
+              <FilterBar>
+                <SearchBar value={query} onChange={setQuery} placeholder="Search inputs or products..." />
+                <FilterChips options={categories} value={category} onChange={setCategory} />
+              </FilterBar>
+            )}
 
-                {item.options.length === 0 ? (
-                  <p className="form-hint">Purchase link unavailable for this input.</p>
-                ) : (
-                  item.options.map((opt) => (
-                    <div key={opt.id} style={{ borderTop: '1px solid var(--color-border)', paddingTop: 'var(--space-sm)', marginTop: 'var(--space-sm)' }}>
-                      <p style={{ fontWeight: 600 }}>{opt.name}</p>
-                      <p className="form-hint">
-                        {currency(opt.estimatedPrice)} {opt.unit}
-                        {opt.seller ? ` - ${opt.seller}` : ''}
-                      </p>
-                      {opt.purchaseStatus === 'available' ? (
-                        <a
-                          href={opt.purchaseUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-secondary"
-                          style={{ marginTop: 'var(--space-xs)' }}
-                        >
-                          View / Buy
-                        </a>
-                      ) : (
-                        <p className="form-hint" style={{ fontStyle: 'italic' }}>
-                          Purchase link unavailable
-                        </p>
-                      )}
+            {visible.length === 0 ? (
+              <Card>
+                <EmptyState icon={Package} title="No inputs match your search" description="Try a different search or category." />
+              </Card>
+            ) : (
+              <div className="item-grid">
+                {visible.map((item) => (
+                  <Card className="item-card" key={item.category}>
+                    <div className="item-card__header">
+                      <div className="crop-rec__title">
+                        <IconTile category={item.category} />
+                        <div>
+                          <h3 className="item-card__title">{item.category}</h3>
+                          <span className="meta">{item.quantityLabel}</span>
+                        </div>
+                      </div>
+                      <StatusBadge status={item.required ? 'required' : 'optional'} />
                     </div>
-                  ))
-                )}
-              </div>
-            ))}
-          </div>
 
-          <p className="form-hint" style={{ marginTop: 'var(--space-xl)' }}>
-            {checklist.disclaimer}
-          </p>
-        </div>
-      )}
-      </div>
-    </div>
+                    <p className="product-cost">
+                      <span className="meta">Estimated cost</span>
+                      <strong>{item.estimatedCost != null ? currency(item.estimatedCost) : 'Not available'}</strong>
+                    </p>
+
+                    {item.options.length === 0 ? (
+                      <p className="form-hint">Purchase link unavailable for this input.</p>
+                    ) : (
+                      <ul className="product-options">
+                        {item.options.map((opt) => (
+                          <li key={opt.id}>
+                            <div>
+                              <p className="product-options__name">{opt.name}</p>
+                              <p className="meta">
+                                {currency(opt.estimatedPrice)} {opt.unit}
+                                {opt.seller ? ` · ${opt.seller}` : ''}
+                              </p>
+                            </div>
+                            {opt.purchaseStatus === 'available' && opt.purchaseUrl ? (
+                              <a href={opt.purchaseUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm">
+                                View / Buy <ExternalLink size={14} strokeWidth={2} aria-hidden="true" />
+                                <span className="visually-hidden"> {opt.name} (opens in a new tab)</span>
+                              </a>
+                            ) : (
+                              <span className="meta product-options__na">Purchase link unavailable</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )}
+
+            <p className="form-hint page-disclaimer">{checklist.disclaimer}</p>
+          </>
+        )}
+      </Section>
+    </Page>
   );
 }
 

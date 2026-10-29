@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 import { getArticleById } from '../services/learningService';
+import { friendlyError } from '../services/errors';
+import Page from '../components/Page';
+import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
+import { ErrorState } from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
+
+const BACK = { to: '/learning', label: 'Back to Learning Hub' };
 
 function ArticleDetail() {
   const { id } = useParams();
@@ -22,7 +27,7 @@ function ArticleDetail() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err.message);
+          setError(friendlyError(err, 'This article'));
           setStatus('error');
         }
       });
@@ -32,38 +37,37 @@ function ArticleDetail() {
   }, [id]);
 
   if (status === 'loading') {
-    return <LoadingState label="Loading article..." />;
+    return (
+      <Page>
+        <PageHeader back={BACK} eyebrow="Learn" pillar="neutral" title="Loading article..." />
+        <LoadingState label="Loading article..." />
+      </Page>
+    );
   }
 
   if (status === 'error') {
     return (
-      <div className="container error-state">
-        <p>Unable to load this article. {error}</p>
-      </div>
+      <Page>
+        <PageHeader back={BACK} eyebrow="Learn" pillar="neutral" title="Article" />
+        <Card>
+          <ErrorState title="Unable to load this article" message={error} />
+        </Card>
+      </Page>
     );
   }
 
   return (
-    <div className="container" style={{ padding: '3rem 0' }}>
-      <Link to="/learning" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
-        <ArrowLeft size={16} strokeWidth={2} /> Back to Learning Hub
-      </Link>
+    <Page className="page--reading">
+      <PageHeader back={BACK} eyebrow={`Learn · ${article.category}`} pillar="neutral" title={article.title} description={article.summary} />
 
-      <span className="badge badge-medium" style={{ marginTop: 'var(--space-md)', display: 'inline-block' }}>
-        {article.category}
-      </span>
-      <h1 style={{ marginTop: 'var(--space-sm)' }}>{article.title}</h1>
-      <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>{article.summary}</p>
-
-      <Card style={{ marginTop: 'var(--space-lg)', maxWidth: 720 }}>
-        <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{article.content}</p>
+      <Card as="article" className="article-body">
+        <p>{article.content}</p>
       </Card>
 
-      <p className="form-hint" style={{ marginTop: 'var(--space-lg)' }}>
-        Source: {article.source}
+      <p className="form-hint page-disclaimer">
+        Source: {article.source} · Last updated: {new Date(article.updatedAt).toLocaleDateString('en-IN')}
       </p>
-      <p className="form-hint">Last updated: {new Date(article.updatedAt).toLocaleDateString('en-IN')}</p>
-    </div>
+    </Page>
   );
 }
 

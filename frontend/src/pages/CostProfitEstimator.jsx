@@ -1,15 +1,41 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Wallet, TrendingUp, Landmark, Ruler, PiggyBank } from 'lucide-react';
+import {
+  Wallet,
+  TrendingUp,
+  Landmark,
+  PiggyBank,
+  Sprout,
+  Calculator,
+  RotateCcw,
+  Receipt,
+  Wheat,
+  Info,
+  ArrowRight,
+} from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getCrops } from '../services/cropService';
 import { getFarmerProfile } from '../services/farmerService';
 import { estimateProfit } from '../services/profitService';
+import { friendlyError } from '../services/errors';
+import Page, { Section } from '../components/Page';
 import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
 import StatCard from '../components/StatCard';
 import Button from '../components/Button';
+import Badge from '../components/Badge';
+import EmptyState, { ErrorState } from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
+
+// Display-only labels for result.costBreakdownPerAcre (returned by the API).
+const BREAKDOWN = [
+  { key: 'seedCostPerAcre', label: 'Seed' },
+  { key: 'fertilizerCostPerAcre', label: 'Fertilizer' },
+  { key: 'labourCostPerAcre', label: 'Labour' },
+  { key: 'irrigationCostPerAcre', label: 'Irrigation' },
+  { key: 'cropProtectionCostPerAcre', label: 'Pesticides / crop protection' },
+  { key: 'otherCostPerAcre', label: 'Other' },
+];
 
 const COST_FIELDS = [
   { key: 'seedCostPerAcre', label: 'Seed cost (₹/acre)' },
@@ -58,7 +84,7 @@ function CostProfitEstimator() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setLoadError(err.message);
+          setLoadError(friendlyError(err, 'Crops'));
           setStatus('error');
         }
       });
@@ -115,60 +141,84 @@ function CostProfitEstimator() {
       const data = await estimateProfit(token, payload);
       setEstimate(data);
     } catch (err) {
-      setEstimateError(err.message);
+      setEstimateError(friendlyError(err, 'This crop'));
       setEstimate(null);
     } finally {
       setCalculating(false);
     }
   }
 
+  const header = (
+    <PageHeader
+      eyebrow="Farm Intelligence"
+      pillar="farm"
+      title="Cost & Profit"
+      description="Understand the economics of your selected crop - what it may cost, earn and leave as profit on your land."
+    />
+  );
+
   if (status === 'loading') {
-    return <LoadingState label="Loading crops..." />;
+    return (
+      <Page>
+        {header}
+        <LoadingState label="Loading crops..." />
+      </Page>
+    );
   }
 
   if (status === 'error') {
     return (
-      <div className="container error-state">
-        <p>Unable to load crops. {loadError}</p>
-      </div>
+      <Page>
+        {header}
+        <Card>
+          <ErrorState title="Unable to load crops" message={loadError} />
+        </Card>
+      </Page>
     );
   }
 
+  const r = estimate?.result;
+  const breakdown = r ? BREAKDOWN.map((b) => ({ ...b, value: r.costBreakdownPerAcre[b.key] })) : [];
+
   return (
-    <div>
-      <PageHeader
-        eyebrow="Cost & Profit"
-        title="Understand your farm's potential"
-        description="Pick a crop to see an example cost and profit estimate for your land. Every pre-filled number is a prototype example - edit any field you know a real value for."
-      />
-      <div className="container" style={{ paddingBottom: '3rem' }}>
+    <Page>
+      {header}
 
-      <Card style={{ maxWidth: 640 }}>
-        <form className="form" style={{ maxWidth: '100%' }} onSubmit={handleSubmit}>
-          <div className="form-field">
-            <label htmlFor="crop">Crop</label>
-            <select id="crop" value={cropId} onChange={handleCropChange} required>
-              <option value="">Select a crop</option>
-              {crops.map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
+      <Card>
+        <form className="form" onSubmit={handleSubmit}>
+          <Card.Header>
+            <Card.Title icon={Sprout}>Crop and land</Card.Title>
+            <Card.Description>
+              Pick a crop to pre-fill example values. Edit any field you know a real value for.
+            </Card.Description>
+          </Card.Header>
 
-          <div className="form-field">
-            <label htmlFor="landAreaAcres">Land area (acres)</label>
-            <input
-              id="landAreaAcres"
-              type="number"
-              min="0.1"
-              step="0.1"
-              required
-              value={landAreaAcres}
-              onChange={(e) => setLandAreaAcres(e.target.value)}
-            />
-            <span className="form-hint">Defaults from your farm profile - adjust if needed.</span>
+          <div className="form-grid form-grid--2">
+            <div className="form-field">
+              <label htmlFor="crop">Crop</label>
+              <select id="crop" value={cropId} onChange={handleCropChange} required>
+                <option value="">Select a crop</option>
+                {crops.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-field">
+              <label htmlFor="landAreaAcres">Land area (acres)</label>
+              <input
+                id="landAreaAcres"
+                type="number"
+                min="0.1"
+                step="0.1"
+                required
+                value={landAreaAcres}
+                onChange={(e) => setLandAreaAcres(e.target.value)}
+              />
+              <span className="form-hint">Defaults from your farm profile - adjust if needed.</span>
+            </div>
           </div>
 
           {selectedCrop && !selectedCrop.economics && (
@@ -177,87 +227,160 @@ function CostProfitEstimator() {
 
           {selectedCrop?.economics && (
             <>
-              <p className="form-hint">
-                {selectedCrop.economics.note} Values below are pre-filled examples - edit any you have real
-                figures for.
+              <p className="notice">
+                <Info size={16} strokeWidth={2} aria-hidden="true" />
+                <span>
+                  {selectedCrop.economics.note} Values below are pre-filled examples - edit any you have real figures for.
+                </span>
               </p>
-              {COST_FIELDS.map(({ key, label }) => (
-                <div className="form-field" key={key}>
-                  <label htmlFor={key}>
-                    {label} {!edited[key] && <span className="badge badge-medium">Example</span>}
-                    {edited[key] && <span className="badge badge-high">Your value</span>}
-                  </label>
-                  <input
-                    id={key}
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={fields[key] ?? ''}
-                    onChange={(e) => handleFieldChange(key, e.target.value)}
-                  />
-                </div>
-              ))}
-              <button type="button" className="btn btn-secondary" onClick={resetToExample}>
-                Reset to example values
-              </button>
+              <div className="form-grid">
+                {COST_FIELDS.map(({ key, label }) => (
+                  <div className="form-field" key={key}>
+                    <label htmlFor={key} className="label-with-badge">
+                      {label}
+                      {edited[key] ? <Badge variant="success">Your value</Badge> : <Badge variant="warning">Example</Badge>}
+                    </label>
+                    <input
+                      id={key}
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={fields[key] ?? ''}
+                      onChange={(e) => handleFieldChange(key, e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
             </>
           )}
 
           {estimateError && <p className="form-error">{estimateError}</p>}
 
-          <button type="submit" className="btn btn-primary" disabled={!cropId || calculating}>
-            {calculating ? 'Calculating...' : 'Calculate estimate'}
-          </button>
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary btn-lg" disabled={!cropId || calculating}>
+              <Calculator size={16} strokeWidth={2} aria-hidden="true" />
+              {calculating ? 'Calculating...' : 'Calculate profit'}
+            </button>
+            {selectedCrop?.economics && (
+              <button type="button" className="btn btn-ghost" onClick={resetToExample}>
+                <RotateCcw size={16} strokeWidth={2} aria-hidden="true" />
+                Reset to example values
+              </button>
+            )}
+          </div>
         </form>
       </Card>
 
-      {estimate && (
-        <div style={{ marginTop: 'var(--space-xl)' }}>
-          <h2>
-            Estimate for {estimate.crop.name} on {estimate.landAreaAcres} acre
-            {estimate.landAreaAcres === 1 ? '' : 's'}
-          </h2>
+      {!estimate && (
+        <Section title="Your estimate">
+          <Card>
+            <EmptyState
+              icon={Calculator}
+              title="No estimate yet"
+              description="Choose a crop, check your land area, then select Calculate profit to see costs, revenue and profit."
+            />
+          </Card>
+        </Section>
+      )}
 
-          <div className="grid-auto" style={{ marginTop: 'var(--space-md)' }}>
-            <StatCard icon={Wallet} label="Total Cost" value={currency(estimate.result.totalCost)} />
-            <StatCard icon={TrendingUp} label="Expected Revenue" value={currency(estimate.result.expectedRevenue)} />
-            <StatCard
-              icon={PiggyBank}
-              label="Estimated Profit"
-              value={<span style={{ color: 'var(--color-primary-700)' }}>{currency(estimate.result.estimatedProfit)}</span>}
-            />
-            <StatCard icon={Ruler} label="Cost per Acre" value={currency(estimate.result.costPerAcre)} />
-            <StatCard icon={Landmark} label="Profit per Acre" value={currency(estimate.result.profitPerAcre)} />
-            <StatCard
-              icon={TrendingUp}
-              label="Expected Yield"
-              value={`${estimate.result.expectedYieldKg.toLocaleString('en-IN')} kg`}
-              meta={`Revenue/acre: ${currency(estimate.result.revenuePerAcre)}`}
-            />
+      {estimate && (
+        <Section
+          title={`Estimate for ${estimate.crop.name} on ${estimate.landAreaAcres} acre${estimate.landAreaAcres === 1 ? '' : 's'}`}
+          description={estimate.usingExampleData ? 'Includes example values you did not override.' : 'Uses your own figures and/or real market pricing.'}
+        >
+          <div className="stat-grid">
+            <StatCard icon={Wallet} label="Total cost" value={currency(r.totalCost)} meta={`${currency(r.costPerAcre)} per acre`} />
+            <StatCard icon={TrendingUp} label="Expected revenue" value={currency(r.expectedRevenue)} meta={`${currency(r.revenuePerAcre)} per acre`} />
+            <StatCard icon={PiggyBank} label="Estimated profit" value={currency(r.estimatedProfit)} className="stat-card--highlight" />
+            <StatCard icon={Landmark} label="Profit per acre" value={currency(r.profitPerAcre)} />
           </div>
 
-          <Card style={{ maxWidth: 640, marginTop: 'var(--space-lg)' }}>
-            {estimate.fieldSources.sellingPricePerKg === 'market-price' && estimate.marketPrice && (
-              <p className="form-hint">
-                <span className="badge badge-high">Market price</span> Selling price used real market data from{' '}
-                {estimate.marketPrice.market} ({new Date(estimate.marketPrice.date).toLocaleDateString('en-IN')}) -
-                Source: {estimate.marketPrice.source}
-                {estimate.marketPrice.stale ? ' (most recent price on file - live source unreachable just now)' : ''}
-              </p>
-            )}
+          <div className="two-col profit-details">
+            <Card>
+              <Card.Header>
+                <Card.Title icon={Receipt}>Cost breakdown</Card.Title>
+                <Card.Description>Per acre, as used in this estimate.</Card.Description>
+              </Card.Header>
+              <ul className="breakdown">
+                {breakdown.map((b) => {
+                  const share = r.costPerAcre > 0 ? Math.round((b.value / r.costPerAcre) * 100) : 0;
+                  return (
+                    <li key={b.key}>
+                      <div className="breakdown__row">
+                        <span>{b.label}</span>
+                        <span className="breakdown__value">
+                          {currency(b.value)}
+                          <span className="meta"> · {share}%</span>
+                        </span>
+                      </div>
+                      <div className="progress-bar" aria-hidden="true">
+                        <div className="progress-bar__fill" style={{ width: `${share}%` }} />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="breakdown__total">
+                <span>Total cost per acre</span>
+                <strong>{currency(r.costPerAcre)}</strong>
+              </div>
+            </Card>
 
-            <p className="form-hint" style={{ marginTop: 'var(--space-md)' }}>
-              {estimate.disclaimer}
-            </p>
+            <div className="stack">
+              <Card>
+                <Card.Header>
+                  <Card.Title icon={Wheat}>Revenue</Card.Title>
+                </Card.Header>
+                <dl className="detail-list detail-list--compact">
+                  <div className="detail-list__row">
+                    <dt>Expected yield</dt>
+                    <dd>{r.expectedYieldKg.toLocaleString('en-IN')} kg</dd>
+                  </div>
+                  {estimate.inputs?.sellingPricePerKg != null && (
+                    <div className="detail-list__row">
+                      <dt>Selling price used</dt>
+                      <dd>{currency(estimate.inputs.sellingPricePerKg)} / kg</dd>
+                    </div>
+                  )}
+                  <div className="detail-list__row">
+                    <dt>Revenue per acre</dt>
+                    <dd>{currency(r.revenuePerAcre)}</dd>
+                  </div>
+                  <div className="detail-list__row">
+                    <dt>Expected revenue</dt>
+                    <dd>{currency(r.expectedRevenue)}</dd>
+                  </div>
+                </dl>
+                {estimate.fieldSources.sellingPricePerKg === 'market-price' && estimate.marketPrice && (
+                  <p className="form-hint profit-market">
+                    <Badge variant="success">Market price</Badge> Selling price used real market data from{' '}
+                    {estimate.marketPrice.market} ({new Date(estimate.marketPrice.date).toLocaleDateString('en-IN')}) - Source:{' '}
+                    {estimate.marketPrice.source}
+                    {estimate.marketPrice.stale ? ' (most recent price on file - live source unreachable just now)' : ''}
+                  </p>
+                )}
+              </Card>
 
-            <Button to={`/inputs?cropId=${estimate.crop.id}`} variant="secondary" size="sm" style={{ marginTop: 'var(--space-md)' }}>
-              View input shopping list
-            </Button>
-          </Card>
-        </div>
+              <Card className="profit-card">
+                <Card.Header>
+                  <Card.Title icon={PiggyBank}>Estimated profit</Card.Title>
+                </Card.Header>
+                <p className="big-number">{currency(r.estimatedProfit)}</p>
+                <p className="meta">
+                  {currency(r.expectedRevenue)} revenue - {currency(r.totalCost)} cost · {currency(r.profitPerAcre)} per acre
+                </p>
+                <p className="form-hint">{estimate.disclaimer}</p>
+                <Card.Footer>
+                  <Button to={`/inputs?cropId=${estimate.crop.id}`} variant="secondary" size="sm" icon={ArrowRight} iconPosition="right">
+                    View input shopping list
+                  </Button>
+                </Card.Footer>
+              </Card>
+            </div>
+          </div>
+        </Section>
       )}
-      </div>
-    </div>
+    </Page>
   );
 }
 

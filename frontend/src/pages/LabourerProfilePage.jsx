@@ -1,8 +1,13 @@
 import { useEffect, useState } from 'react';
+import { IndianRupee, Briefcase, CircleCheck, Star, UserRound, CheckCircle2, Save, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getOwnLabourerProfile, updateOwnLabourerProfile } from '../services/labourerService';
+import { friendlyError } from '../services/errors';
+import Page, { Section } from '../components/Page';
 import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
+import StatCard from '../components/StatCard';
+import { ErrorState } from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 
 const WORK_TYPES = ['Harvesting', 'Planting', 'Weeding', 'Irrigation', 'Ploughing', 'General Farm Work'];
@@ -41,7 +46,7 @@ function LabourerProfilePage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err.message);
+          setError(friendlyError(err, 'Your profile'));
           setStatus('error');
         }
       });
@@ -84,122 +89,168 @@ function LabourerProfilePage() {
       });
       setSuccess('Profile saved.');
     } catch (err) {
-      setError(err.message);
+      setError(friendlyError(err, 'Your profile'));
     } finally {
       setSaving(false);
     }
   }
 
+  const header = (
+    <PageHeader
+      eyebrow="Labour Connection"
+      pillar="labour"
+      title="My Profile"
+      description="Keep your availability and rates current so farmers can find and hire you."
+    />
+  );
+
   if (status === 'loading') {
-    return <LoadingState label="Loading your profile..." />;
+    return (
+      <Page>
+        {header}
+        <LoadingState label="Loading your profile..." />
+      </Page>
+    );
   }
 
   if (status === 'error') {
     return (
-      <div className="container error-state">
-        <p>Unable to load your profile. {error}</p>
-      </div>
+      <Page>
+        {header}
+        <Card>
+          <ErrorState title="Unable to load your profile" message={error} />
+        </Card>
+      </Page>
     );
   }
 
   return (
-    <>
-      <PageHeader
-        eyebrow="My Profile"
-        title="Your labourer profile"
-        description="Keep your availability and rates current so farmers can find and hire you."
-      />
-      <div className="container" style={{ paddingBottom: '3rem' }}>
-      <Card style={{ maxWidth: 620 }}>
-        <p className="form-hint">
-          Rating: {rating != null ? `★ ${rating.toFixed(1)} (${ratingCount} reviews)` : 'No ratings yet'} - shown to
-          farmers, not editable here.
-        </p>
+    <Page>
+      {header}
 
-        {error && <p className="form-error">{error}</p>}
-        {success && <p className="form-success">{success}</p>}
+      <Section className="page-section--flush" title="How farmers see you">
+        <div className="stat-grid">
+          <StatCard icon={IndianRupee} label="Daily wage" value={dailyWage !== '' ? `₹${dailyWage}` : 'Not set'} />
+          <StatCard icon={Briefcase} label="Experience" value={experienceYears !== '' ? `${experienceYears} yrs` : 'Not set'} />
+          <StatCard icon={CircleCheck} label="Availability" value={availability ? 'Available' : 'Unavailable'} />
+          <StatCard
+            icon={Star}
+            label="Rating"
+            value={rating != null ? `★ ${rating.toFixed(1)}` : 'No ratings yet'}
+            meta={rating != null ? `${ratingCount} reviews · not editable` : 'Shown to farmers'}
+          />
+        </div>
+      </Section>
 
-        <form className="form" style={{ maxWidth: '100%', marginTop: 'var(--space-md)' }} onSubmit={handleSubmit}>
-          <div className="form-field">
-            <label>Work types</label>
-            <div className="form-checkbox-group">
-              {WORK_TYPES.map((type) => (
-                <label key={type}>
-                  <input type="checkbox" checked={workTypes.includes(type)} onChange={() => toggleWorkType(type)} />
-                  {type}
-                </label>
-              ))}
-            </div>
-          </div>
+      <Section>
+        <Card>
+          <form className="form" onSubmit={handleSubmit}>
+            <Card.Header>
+              <Card.Title icon={UserRound}>Work details</Card.Title>
+              <Card.Description>These details appear on your Labour Marketplace card.</Card.Description>
+            </Card.Header>
 
-          <div className="form-field">
-            <label htmlFor="experienceYears">Experience (years)</label>
-            <input
-              id="experienceYears"
-              type="number"
-              min="0"
-              step="0.5"
-              value={experienceYears}
-              onChange={(e) => setExperienceYears(e.target.value)}
-            />
-          </div>
+            {success && (
+              <div className="success-panel" role="status">
+                <CheckCircle2 size={24} strokeWidth={2} aria-hidden="true" />
+                <div>
+                  <strong>{success}</strong>
+                  <p>Farmers will see your updated details in the Labour Marketplace.</p>
+                </div>
+              </div>
+            )}
+            {error && <p className="form-error">{error}</p>}
 
-          <div className="form-field">
-            <label htmlFor="dailyWage">Daily wage (₹)</label>
-            <input id="dailyWage" type="number" min="0" value={dailyWage} onChange={(e) => setDailyWage(e.target.value)} />
-          </div>
+            <fieldset className="form-field form-fieldset">
+              <legend>Work types</legend>
+              <div className="form-checkbox-group">
+                {WORK_TYPES.map((type) => (
+                  <label key={type} className={workTypes.includes(type) ? 'is-checked' : ''}>
+                    <input type="checkbox" checked={workTypes.includes(type)} onChange={() => toggleWorkType(type)} />
+                    {type}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
 
-          <div className="form-field">
-            <label>
-              <input
-                type="checkbox"
-                checked={availability}
-                onChange={(e) => setAvailability(e.target.checked)}
-                style={{ marginRight: 'var(--space-xs)' }}
-              />
-              Currently available for work
-            </label>
-          </div>
-
-          <div className="form-field">
-            <label htmlFor="description">Description</label>
-            <textarea id="description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
-          </div>
-
-          <div className="form-field">
-            <label>Work history</label>
-            {workHistory.map((entry, i) => (
-              <div key={i} style={{ display: 'flex', gap: 'var(--space-sm)', marginBottom: 'var(--space-xs)' }}>
+            <div className="form-grid form-grid--2">
+              <div className="form-field">
+                <label htmlFor="experienceYears">Experience (years)</label>
                 <input
-                  placeholder="Description"
-                  value={entry.description}
-                  onChange={(e) => updateWorkHistoryEntry(i, 'description', e.target.value)}
-                  style={{ flex: 1 }}
-                />
-                <input
+                  id="experienceYears"
                   type="number"
-                  placeholder="Year"
-                  value={entry.year || ''}
-                  onChange={(e) => updateWorkHistoryEntry(i, 'year', e.target.value)}
-                  style={{ width: 90 }}
+                  min="0"
+                  step="0.5"
+                  value={experienceYears}
+                  onChange={(e) => setExperienceYears(e.target.value)}
                 />
-                <button type="button" className="btn btn-secondary" onClick={() => removeWorkHistoryEntry(i)}>
-                  Remove
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="dailyWage">Daily wage (₹)</label>
+                <input id="dailyWage" type="number" min="0" value={dailyWage} onChange={(e) => setDailyWage(e.target.value)} />
+              </div>
+            </div>
+
+            <label className="form-check form-check--card">
+              <input type="checkbox" checked={availability} onChange={(e) => setAvailability(e.target.checked)} />
+              <span>
+                <strong>Currently available for work</strong>
+                <span className="meta"> - farmers can filter by availability.</span>
+              </span>
+            </label>
+
+            <div className="form-field">
+              <label htmlFor="description">About you</label>
+              <textarea id="description" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+            </div>
+
+            <fieldset className="form-field form-fieldset">
+              <legend>Work history</legend>
+              {workHistory.length === 0 && <p className="form-hint">No entries yet - add previous work to build trust with farmers.</p>}
+              {workHistory.map((entry, i) => (
+                <div key={i} className="history-row">
+                  <input
+                    aria-label={`Work history ${i + 1} description`}
+                    placeholder="What work did you do?"
+                    value={entry.description}
+                    onChange={(e) => updateWorkHistoryEntry(i, 'description', e.target.value)}
+                  />
+                  <input
+                    aria-label={`Work history ${i + 1} year`}
+                    type="number"
+                    placeholder="Year"
+                    value={entry.year || ''}
+                    onChange={(e) => updateWorkHistoryEntry(i, 'year', e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() => removeWorkHistoryEntry(i)}
+                    aria-label={`Remove work history ${i + 1}`}
+                  >
+                    <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
+                  </button>
+                </div>
+              ))}
+              <div>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={addWorkHistoryEntry}>
+                  <Plus size={15} strokeWidth={2} aria-hidden="true" />
+                  Add work history entry
                 </button>
               </div>
-            ))}
-            <button type="button" className="btn btn-secondary" onClick={addWorkHistoryEntry} style={{ marginTop: 'var(--space-xs)' }}>
-              Add work history entry
-            </button>
-          </div>
+            </fieldset>
 
-          <button type="submit" className="btn btn-primary" disabled={saving}>
-            {saving ? 'Saving...' : 'Save profile'}
-          </button>
-        </form>
-      </Card>
-      </div>
-    </>
+            <div className="form-actions form-actions--bar">
+              <button type="submit" className="btn btn-primary" disabled={saving}>
+                <Save size={16} strokeWidth={2} aria-hidden="true" />
+                {saving ? 'Saving...' : 'Save profile'}
+              </button>
+            </div>
+          </form>
+        </Card>
+      </Section>
+    </Page>
   );
 }
 

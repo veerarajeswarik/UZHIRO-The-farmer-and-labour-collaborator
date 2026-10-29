@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext.jsx';
 import ProtectedRoute from './components/ProtectedRoute';
 import MainLayout from './layouts/MainLayout';
 import PageLoading from './components/PageLoading';
@@ -48,9 +49,10 @@ const NotFound = lazy(() => import('./pages/NotFound'));
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Suspense fallback={<PageLoading />}>
-          <Routes>
+      <ThemeProvider>
+        <AuthProvider>
+          <Suspense fallback={<PageLoading />}>
+            <Routes>
             <Route element={<MainLayout />}>
               <Route path="/" element={<Landing />} />
               <Route path="/login" element={<Login />} />
@@ -195,9 +197,10 @@ function App() {
 
               <Route path="*" element={<NotFound />} />
             </Route>
-          </Routes>
-        </Suspense>
-      </AuthProvider>
+            </Routes>
+          </Suspense>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

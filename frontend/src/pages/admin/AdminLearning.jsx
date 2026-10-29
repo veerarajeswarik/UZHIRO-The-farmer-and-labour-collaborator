@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import LoadingState from '../../components/LoadingState';
+import { ErrorState } from '../../components/EmptyState';
 import { useAuth } from '../../hooks/useAuth';
 import { listAdminArticles, createAdminArticle, updateAdminArticle, deleteAdminArticle } from '../../services/adminService';
 
@@ -72,11 +74,10 @@ function AdminLearning() {
 
   return (
     <>
-      <h2>Learning content</h2>
 
-      <div className="card" style={{ maxWidth: 640, marginTop: 'var(--space-md)' }}>
+      <div className="card admin-form-card">
         <h3>{editingId ? 'Edit article' : 'Add article'}</h3>
-        <form className="form" style={{ maxWidth: '100%' }} onSubmit={handleSubmit}>
+        <form className="form" onSubmit={handleSubmit}>
           <div className="form-field">
             <label>Title</label>
             <input required value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} />
@@ -100,7 +101,7 @@ function AdminLearning() {
 
           {saveError && <p className="form-error">{saveError}</p>}
 
-          <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+          <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving...' : editingId ? 'Save changes' : 'Add article'}
             </button>
@@ -113,17 +114,17 @@ function AdminLearning() {
         </form>
       </div>
 
-      {status === 'loading' && <p style={{ marginTop: 'var(--space-lg)' }}>Loading articles...</p>}
-      {status === 'error' && <p className="form-error">Unable to load articles. {error}</p>}
+      {status === 'loading' && <LoadingState label="Loading articles..." />}
+      {status === 'error' && <ErrorState title="Unable to load articles" message={error} />}
 
       {status === 'ready' && (
-        <div className="crop-grid" style={{ marginTop: 'var(--space-lg)' }}>
+        <div className="item-grid admin-list">
           {articles.map((a) => (
-            <div className="card crop-card" key={a._id}>
-              <span className="badge badge-medium">{a.category}</span>
-              <span className="crop-card__name" style={{ marginTop: 'var(--space-sm)' }}>{a.title}</span>
-              <p className="crop-card__explanation">{a.summary}</p>
-              <div className="crop-card__footer">
+            <div className="card item-card" key={a._id}>
+              <span className="chip">{a.category}</span>
+              <span className="item-card__title">{a.title}</span>
+              <p className="item-card__body clamp-3">{a.summary}</p>
+              <div className="item-card__footer">
                 <button type="button" className="btn btn-secondary" onClick={() => startEdit(a)}>Edit</button>
                 <button type="button" className="btn btn-secondary" onClick={() => handleDelete(a._id)}>Delete</button>
               </div>

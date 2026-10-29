@@ -1,6 +1,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 
-const MODEL = 'claude-opus-5';
+// Override with ANTHROPIC_MODEL (e.g. claude-opus-5-5) without a code change.
+const MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-5';
 const MAX_TOKENS = 2048;
 const MAX_HISTORY_MESSAGES = 20; // cap conversation context sent per request
 

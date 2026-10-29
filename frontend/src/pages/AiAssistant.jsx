@@ -1,17 +1,29 @@
 import { useEffect, useRef, useState } from 'react';
-import { Send } from 'lucide-react';
+import { Send, Bot, Sparkles, SlidersHorizontal, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getCrops } from '../services/cropService';
 import { sendChatMessage, getChatHistory, clearChatHistory } from '../services/aiService';
+import { friendlyError } from '../services/errors';
+import Page from '../components/Page';
 import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
+import Button from '../components/Button';
 
 const SUGGESTIONS = [
-  'What should I plant this season?',
-  'How can I improve my yield?',
-  'How much will this crop cost?',
-  'How should I manage irrigation?',
+  'What should I plant?',
+  'How much profit can I expect?',
+  'Which crop suits my farm?',
+  'What farming task should I do next?',
+  'How can I improve my crop?',
 ];
+
+function chatError(err) {
+  if (!err?.status || err.status >= 500) {
+    console.error(err);
+    return "The assistant couldn't answer right now. Please try again in a moment.";
+  }
+  return friendlyError(err, 'The assistant');
+}
 
 function AiAssistant() {
   const { token } = useAuth();
@@ -43,7 +55,8 @@ function AiAssistant() {
   }, []);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll within the chat panel only ('nearest' avoids yanking the whole page).
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages]);
 
   async function handleSend(e) {
@@ -68,7 +81,7 @@ function AiAssistant() {
       setLastDisclaimer(data.disclaimer);
       setLastContextUsed(data.contextUsed);
     } catch (err) {
-      setError(err.message);
+      setError(chatError(err));
       setMessages(nextMessages); // keep the user's message visible even on failure
     } finally {
       setSending(false);
@@ -81,7 +94,7 @@ function AiAssistant() {
       setMessages([]);
       setSaveHistory(false);
     } catch (err) {
-      setError(err.message);
+      setError(friendlyError(err, 'Your chat history'));
     }
   }
 
@@ -92,111 +105,138 @@ function AiAssistant() {
     : [];
 
   return (
-    <div>
+    <Page>
       <PageHeader
-        eyebrow="AI Assistant"
-        title="Your smart farming assistant"
-        description="Ask about crop choices, pests, fertilizer or general farming questions. Answers are AI-generated guidance, not a guarantee - for high-stakes decisions, consult a local agricultural extension officer."
+        eyebrow="Tools · Farming guidance"
+        pillar="neutral"
+        title="UZHIRO AI Assistant"
+        description="Your farming support companion. Ask about crops, costs, pests, fertilizer or what to do next. Answers are AI-generated guidance - for high-stakes decisions, consult your local agricultural extension officer."
       />
-      <div className="container" style={{ paddingBottom: '3rem' }}>
 
-      <Card style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-        <div className="form-field" style={{ minWidth: 200 }}>
-          <label htmlFor="cropId">Ask about a specific crop (optional)</label>
-          <select id="cropId" value={cropId} onChange={(e) => setCropId(e.target.value)}>
-            <option value="">None</option>
-            {crops.map((c) => (
-              <option key={c._id} value={c._id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
-          <input type="checkbox" checked={includeWeather} onChange={(e) => setIncludeWeather(e.target.checked)} />
-          Include current weather
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-xs)' }}>
-          <input type="checkbox" checked={saveHistory} onChange={(e) => setSaveHistory(e.target.checked)} />
-          Save my chat history
-        </label>
-        {messages.length > 0 && (
-          <button type="button" className="btn btn-secondary btn-sm" onClick={handleClearHistory}>
-            Clear history
-          </button>
-        )}
-      </Card>
+      <div className="chat-layout">
+        <Card className="chat-card">
+          <div className="chat-card__messages" aria-live="polite">
+            {messages.length === 0 ? (
+              <div className="chat-empty">
+                <span className="icon-tile icon-tile--lg" aria-hidden="true">
+                  <Bot size={26} strokeWidth={2} />
+                </span>
+                <h2 className="card__title">How can I help on your farm today?</h2>
+                <p className="meta">Pick a question to start, or type your own below.</p>
+                <div className="chat-prompts">
+                  {SUGGESTIONS.map((s) => (
+                    <button key={s} type="button" className="chat-prompt" onClick={() => setInput(s)}>
+                      <Sparkles size={14} strokeWidth={2} aria-hidden="true" />
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              messages.map((m, i) => (
+                <div key={i} className={`chat-row chat-row--${m.role}`}>
+                  {m.role === 'assistant' && (
+                    <span className="chat-avatar" aria-hidden="true">
+                      <Bot size={16} strokeWidth={2} />
+                    </span>
+                  )}
+                  <div className={`chat-bubble chat-bubble--${m.role}`}>
+                    <span className="visually-hidden">{m.role === 'user' ? 'You said:' : 'UZHIRO AI said:'}</span>
+                    {m.content}
+                  </div>
+                </div>
+              ))
+            )}
+            {sending && (
+              <div className="chat-row chat-row--assistant">
+                <span className="chat-avatar" aria-hidden="true">
+                  <Bot size={16} strokeWidth={2} />
+                </span>
+                <div className="chat-bubble chat-bubble--assistant chat-bubble--typing">Thinking...</div>
+              </div>
+            )}
+            <div ref={bottomRef} />
+          </div>
 
-      {messages.length === 0 && (
-        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: 'var(--space-md)' }}>
-          {SUGGESTIONS.map((s) => (
-            <button key={s} type="button" className="filter-chip" onClick={() => setInput(s)}>
-              {s}
+          {error && <p className="form-error chat-card__error">{error}</p>}
+
+          <form onSubmit={handleSend} className="chat-composer">
+            <label htmlFor="chat-input" className="visually-hidden">
+              Your question
+            </label>
+            <input
+              id="chat-input"
+              placeholder="Ask anything about your farm..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={sending}
+            />
+            <button type="submit" className="btn btn-primary" disabled={sending || !input.trim()}>
+              <Send size={16} strokeWidth={2} aria-hidden="true" />
+              {sending ? 'Sending...' : 'Ask AI'}
             </button>
-          ))}
-        </div>
-      )}
+          </form>
+        </Card>
 
-      <Card style={{ marginTop: 'var(--space-lg)', minHeight: 320, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ flex: 1, overflowY: 'auto', maxHeight: 480 }}>
-          {messages.length === 0 && <p className="form-hint">Ask your first question below.</p>}
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              style={{
-                marginBottom: 'var(--space-md)',
-                textAlign: m.role === 'user' ? 'right' : 'left',
-              }}
-            >
-              <span
-                style={{
-                  display: 'inline-block',
-                  maxWidth: '80%',
-                  padding: '0.6rem 1rem',
-                  borderRadius: m.role === 'user' ? '1.1rem 1.1rem 0.2rem 1.1rem' : '1.1rem 1.1rem 1.1rem 0.2rem',
-                  background: m.role === 'user' ? 'var(--color-primary-700)' : 'var(--color-primary-50)',
-                  color: m.role === 'user' ? 'var(--color-text-inverse)' : 'var(--color-text)',
-                  whiteSpace: 'pre-wrap',
-                  textAlign: 'left',
-                }}
-              >
-                {m.content}
-              </span>
+        <aside className="stack chat-side">
+          <Card>
+            <Card.Header>
+              <Card.Title icon={SlidersHorizontal}>Answer settings</Card.Title>
+            </Card.Header>
+            <div className="form">
+              <div className="form-field">
+                <label htmlFor="cropId">Ask about a specific crop</label>
+                <select id="cropId" value={cropId} onChange={(e) => setCropId(e.target.value)}>
+                  <option value="">None</option>
+                  {crops.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <label className="form-check">
+                <input type="checkbox" checked={includeWeather} onChange={(e) => setIncludeWeather(e.target.checked)} />
+                Include current weather
+              </label>
+              <label className="form-check">
+                <input type="checkbox" checked={saveHistory} onChange={(e) => setSaveHistory(e.target.checked)} />
+                Save my chat history
+              </label>
+              {messages.length > 0 && (
+                <div>
+                  <Button variant="danger" size="sm" icon={Trash2} onClick={handleClearHistory}>
+                    Clear history
+                  </Button>
+                </div>
+              )}
             </div>
-          ))}
-          <div ref={bottomRef} />
-        </div>
+          </Card>
 
-        {error && <p className="form-error">{error}</p>}
+          {messages.length > 0 && (
+            <Card>
+              <Card.Header>
+                <Card.Title icon={Sparkles}>Try asking</Card.Title>
+              </Card.Header>
+              <div className="chat-prompts chat-prompts--stacked">
+                {SUGGESTIONS.map((s) => (
+                  <button key={s} type="button" className="chat-prompt" onClick={() => setInput(s)}>
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
 
-        <form onSubmit={handleSend} style={{ display: 'flex', gap: 'var(--space-sm)', marginTop: 'var(--space-md)' }}>
-          <input
-            style={{ flex: 1 }}
-            placeholder="Ask anything about your farm..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={sending}
-          />
-          <button type="submit" className="btn btn-primary" disabled={sending || !input.trim()}>
-            <Send size={16} strokeWidth={2} />
-            {sending ? 'Sending...' : 'Send'}
-          </button>
-        </form>
-      </Card>
-
-      {contextLabels.length > 0 && (
-        <p className="form-hint" style={{ marginTop: 'var(--space-md)' }}>
-          Context used in the last answer: {contextLabels.join(', ')}.
-        </p>
-      )}
-
-      {lastDisclaimer && (
-        <p className="form-hint" style={{ marginTop: 'var(--space-xs)' }}>
-          {lastDisclaimer}
-        </p>
-      )}
+          {(contextLabels.length > 0 || lastDisclaimer) && (
+            <Card>
+              {contextLabels.length > 0 && <p className="meta">Context used in the last answer: {contextLabels.join(', ')}.</p>}
+              {lastDisclaimer && <p className="form-hint">{lastDisclaimer}</p>}
+            </Card>
+          )}
+        </aside>
       </div>
-    </div>
+    </Page>
   );
 }
 
