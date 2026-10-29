@@ -26,12 +26,39 @@ const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Behind a hosting proxy (Render, etc.) req.ip would otherwise be the proxy's
+// address, so every visitor would share one rate-limit bucket.
+if (isProduction) {
+  app.set('trust proxy', 1);
+}
+
+// CLIENT_URL may list several origins, comma-separated
+// (e.g. "https://uzhiro.netlify.app,http://localhost:5173").
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim().replace(/\/$/, ''))
+  .filter(Boolean);
+// Development only: localhost/127.0.0.1 on any port, plus private-LAN
+// addresses (10.x, 192.168.x, 172.16-31.x) so the Vite "Network" URL works.
+const LOCAL_DEV_ORIGIN =
+  /^http:\/\/(localhost|127\.0\.0\.1|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})(:\d+)?$/;
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true; // same-origin, curl, health checks
+  if (allowedOrigins.includes(origin)) return true;
+  // Any local port in development (Vite may pick 5174, 127.0.0.1 vs localhost, ...).
+  return !isProduction && LOCAL_DEV_ORIGIN.test(origin);
+}
+
 // --- Core middleware ---
 app.use(helmet());
 app.use(compression());
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    // Disallowed origins get no CORS headers (the browser blocks them) rather than a 500.
+    origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),
     credentials: true,
   })
 );

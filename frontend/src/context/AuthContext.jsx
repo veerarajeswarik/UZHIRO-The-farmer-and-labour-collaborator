@@ -3,6 +3,24 @@ import * as authService from '../services/authService';
 
 const TOKEN_KEY = 'uzhiro_token';
 
+// localStorage can throw (private mode, blocked site data) - never let that crash the app.
+function readToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function writeToken(value) {
+  try {
+    if (value) localStorage.setItem(TOKEN_KEY, value);
+    else writeToken(null);
+  } catch {
+    /* storage unavailable - session lasts for this tab only */
+  }
+}
+
 export const AuthContext = createContext(null);
 
 /**
@@ -12,9 +30,12 @@ export const AuthContext = createContext(null);
  * the UI in a logged-in-looking state.
  */
 export function AuthProvider({ children }) {
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY));
+  const [token, setToken] = useState(readToken);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // Set when a saved session couldn't be checked because the server was unreachable.
+  const [sessionError, setSessionError] = useState('');
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,12 +47,23 @@ export function AuthProvider({ children }) {
       }
       try {
         const data = await authService.getMe(token);
-        if (!cancelled) setUser(data.user);
-      } catch {
         if (!cancelled) {
-          localStorage.removeItem(TOKEN_KEY);
+          setUser(data.user);
+          setSessionError('');
+        }
+      } catch (err) {
+        if (cancelled) return;
+        if (err.status === 401) {
+          // Token is invalid/expired: drop it.
+          writeToken(null);
           setToken(null);
           setUser(null);
+        } else {
+          // Server unreachable / restarting: keep the token so a temporary
+          // outage doesn't log the user out. Protected pages will show the
+          // network error and work again once the server is back.
+          console.error('[auth] Could not restore session:', err);
+          setSessionError(err.message || 'Unable to reach the server.');
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -42,11 +74,17 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, attempt]);
+
+  // Re-check the saved session (e.g. after the server comes back).
+  const retrySession = useCallback(() => {
+    setLoading(true);
+    setAttempt((n) => n + 1);
+  }, []);
 
   const login = useCallback(async (credentials) => {
     const data = await authService.login(credentials);
-    localStorage.setItem(TOKEN_KEY, data.token);
+    writeToken(data.token);
     setToken(data.token);
     setUser(data.user);
     return data.user;
@@ -54,14 +92,15 @@ export function AuthProvider({ children }) {
 
   const registerUser = useCallback(async (payload) => {
     const data = await authService.register(payload);
-    localStorage.setItem(TOKEN_KEY, data.token);
+    writeToken(data.token);
     setToken(data.token);
     setUser(data.user);
     return data.user;
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(TOKEN_KEY);
+    setSessionError('');
+    writeToken(null);
     setToken(null);
     setUser(null);
   }, []);
@@ -71,6 +110,8 @@ export function AuthProvider({ children }) {
     token,
     isAuthenticated: Boolean(user),
     loading,
+    sessionError: user ? '' : sessionError,
+    retrySession,
     login,
     register: registerUser,
     logout,

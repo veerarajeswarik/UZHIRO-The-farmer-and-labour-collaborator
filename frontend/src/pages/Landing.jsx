@@ -1,41 +1,34 @@
 import { Navigate } from 'react-router-dom';
-import { Sprout, Calculator, Users, Bot, CloudSun, BookOpen, ArrowRight } from 'lucide-react';
+import { Sprout, Calculator, Users, Bot, CalendarCheck, ArrowRight, Brain, Handshake, UserRound, ClipboardList, Landmark } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import PageHero from '../components/PageHero';
 import SectionHeader from '../components/SectionHeader';
-import Card from '../components/Card';
 import Button from '../components/Button';
 
-const FEATURES = [
+// The two UZHIRO pillars - how farmers make better decisions and get work done.
+const PILLARS = [
   {
-    icon: Sprout,
-    title: 'Smart crop selection',
-    description: 'Get crop recommendations scored transparently against your soil, water and season - never a guess.',
+    key: 'farm',
+    label: 'Farm Intelligence',
+    icon: Brain,
+    lead: 'Decide what to grow, what it will cost, and what to do next.',
+    features: [
+      { icon: Sprout, title: 'Crop selection & comparison', description: 'Crops scored transparently against your soil, water and season.' },
+      { icon: Calculator, title: 'Cost & profit estimator', description: 'Expected investment, revenue and profit before you commit.' },
+      { icon: CalendarCheck, title: 'Farm planner & weather', description: 'Know what to do and when, with farming-focused weather insights.' },
+      { icon: Bot, title: 'AI assistant & learning', description: 'Practical farming guidance grounded in your farm profile.' },
+    ],
   },
   {
-    icon: Calculator,
-    title: 'Cost & profit estimator',
-    description: 'See expected investment, revenue and profit for a crop on your land before you commit.',
-  },
-  {
-    icon: Users,
-    title: 'Labour marketplace',
-    description: 'Find and hire farm labour by location, work type and availability, with request tracking.',
-  },
-  {
-    icon: Bot,
-    title: 'AI farming assistant',
-    description: 'Ask farming questions and get guidance grounded in your farm profile - always a starting point, never a guarantee.',
-  },
-  {
-    icon: CloudSun,
-    title: 'Weather & farm planner',
-    description: 'Live weather with farming-focused insights, plus a task planner for planting, irrigation and harvest.',
-  },
-  {
-    icon: BookOpen,
-    title: 'Learning hub & schemes',
-    description: 'General farming guidance and real government scheme information, with official sources linked.',
+    key: 'labour',
+    label: 'Labour Connection',
+    icon: Handshake,
+    lead: 'Find reliable agricultural workers when you need them - no more phone-call chains.',
+    features: [
+      { icon: Users, title: 'Labour marketplace', description: 'Search by location, work type, availability, experience and wage.' },
+      { icon: UserRound, title: 'Worker profiles', description: 'See experience, work history and ratings where available.' },
+      { icon: ClipboardList, title: 'Hiring requests', description: 'Send requests and track them from pending to completed.' },
+    ],
   },
 ];
 
@@ -56,10 +49,10 @@ function Landing() {
         eyebrow="Smart Agriculture. Better Decisions."
         title={
           <>
-            One platform for every <em>farming</em> decision.
+            Better farm decisions. <em>Reliable</em> farm labour.
           </>
         }
-        description="UZHIRO helps farmers choose the right crops, estimate costs and profit, find labour, and get farming guidance - all backed by transparent data, not guesswork."
+        description="UZHIRO helps farmers make better farming decisions and connect with agricultural labourers when they need them."
         actions={
           <>
             <Button to="/register" size="lg">
@@ -73,12 +66,8 @@ function Landing() {
         }
         floating={
           <div className="glass-card">
-            <div style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Trusted by growers
-            </div>
-            <div style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, marginTop: '0.25rem' }}>
-              Data-driven farming, start to harvest
-            </div>
+            <div className="glass-card__label">Supporting SDG 2 &amp; SDG 8</div>
+            <div className="glass-card__title">Zero Hunger · Decent Work and Economic Growth</div>
           </div>
         }
       />
@@ -86,34 +75,50 @@ function Landing() {
       <section className="section section--cream">
         <div className="container">
           <SectionHeader
-            eyebrow="Why UZHIRO"
-            title="Everything in one place"
-            description="One connected workspace for crop decisions, finances, labour and farm operations."
+            eyebrow="How UZHIRO helps"
+            title="Two things every farm needs"
+            description="Practical guidance for your farming decisions, and a dependable way to find labour at the right time."
             center
           />
-          <div className="grid-auto">
-            {FEATURES.map((f) => (
-              <Card hover key={f.title}>
-                <span
-                  aria-hidden="true"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '2.75rem',
-                    height: '2.75rem',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-primary-100)',
-                    color: 'var(--color-primary-700)',
-                    marginBottom: 'var(--space-md)',
-                  }}
-                >
-                  <f.icon size={20} strokeWidth={2} />
-                </span>
-                <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700 }}>{f.title}</h3>
-                <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>{f.description}</p>
-              </Card>
+          <div className="pillar-grid pillar-grid--even">
+            {PILLARS.map((p) => (
+              <div key={p.key} className={`pillar-panel pillar-panel--${p.key}`}>
+                <div className="pillar-panel__head">
+                  <span className={`icon-tile${p.key === 'labour' ? ' icon-tile--labour' : ''}`} aria-hidden="true">
+                    <p.icon size={20} strokeWidth={2} />
+                  </span>
+                  <div>
+                    <span className={`eyebrow eyebrow--${p.key}`}>{p.label}</span>
+                    <p>{p.lead}</p>
+                  </div>
+                </div>
+                <ul className="feature-list">
+                  {p.features.map((f) => (
+                    <li key={f.title}>
+                      <span className={`icon-tile${p.key === 'labour' ? ' icon-tile--labour' : ''}`} aria-hidden="true">
+                        <f.icon size={18} strokeWidth={2} />
+                      </span>
+                      <span>
+                        <strong>{f.title}</strong>
+                        <span className="meta">{f.description}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
+          </div>
+
+          <div className="landing-cta">
+            <span className="icon-tile" aria-hidden="true">
+              <Landmark size={20} strokeWidth={2} />
+            </span>
+            <p>
+              Plus a <strong>Learning Hub</strong> and <strong>Government Schemes</strong> guide, with official sources linked.
+            </p>
+            <Button to="/register" icon={ArrowRight} iconPosition="right">
+              Create your free account
+            </Button>
           </div>
         </div>
       </section>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CalendarCheck } from 'lucide-react';
+import { CalendarCheck, CalendarDays, Sprout, Check, Pencil, Trash2, Plus, Wand2, Sun, AlertTriangle, CalendarClock, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getCrops } from '../services/cropService';
 import {
@@ -10,9 +10,44 @@ import {
   deleteTask,
   generateTasksFromCrop,
 } from '../services/taskService';
+import { friendlyError } from '../services/errors';
+import Page, { Section } from '../components/Page';
 import PageHeader from '../components/PageHeader';
-import EmptyState from '../components/EmptyState';
-import LoadingState from '../components/LoadingState';
+import Card from '../components/Card';
+import Button from '../components/Button';
+import Badge, { StatusBadge } from '../components/Badge';
+import SkeletonGrid from '../components/Skeleton';
+import EmptyState, { ErrorState } from '../components/EmptyState';
+import { formatDate } from '../utils/format';
+
+// Display-only grouping of the loaded tasks (local calendar day).
+const GROUPS = [
+  { key: 'today', title: "Today's tasks", description: 'Due today.', icon: Sun },
+  { key: 'overdue', title: 'Overdue', description: 'Past their due date and not yet completed.', icon: AlertTriangle },
+  { key: 'upcoming', title: 'Upcoming tasks', description: 'Coming up next, soonest first.', icon: CalendarClock },
+  { key: 'completed', title: 'Completed', description: 'Done - nice work.', icon: CheckCircle2 },
+];
+
+function dayKey(d) {
+  return new Date(d).toLocaleDateString('en-CA'); // YYYY-MM-DD in local time
+}
+
+function groupTasks(tasks) {
+  const today = dayKey(new Date());
+  const byDate = (a, b) => new Date(a.dueDate) - new Date(b.dueDate);
+  const g = { today: [], overdue: [], upcoming: [], completed: [] };
+  tasks.forEach((t) => {
+    if (t.status === 'Completed') g.completed.push(t);
+    else if (dayKey(t.dueDate) === today) g.today.push(t);
+    else if (dayKey(t.dueDate) < today) g.overdue.push(t);
+    else g.upcoming.push(t);
+  });
+  g.today.sort(byDate);
+  g.overdue.sort(byDate);
+  g.upcoming.sort(byDate);
+  g.completed.sort((a, b) => byDate(b, a));
+  return g;
+}
 
 const TASK_TYPES = ['Planting', 'Irrigation', 'Fertilizer', 'Pest Monitoring', 'Harvest', 'General'];
 
@@ -48,7 +83,7 @@ function FarmPlanner() {
         setStatus('ready');
       })
       .catch((err) => {
-        setError(err.message);
+        setError(friendlyError(err, 'Your tasks'));
         setStatus('error');
       });
   }
@@ -76,7 +111,7 @@ function FarmPlanner() {
       setNewTask(emptyNewTask);
       load();
     } catch (err) {
-      setCreateError(err.message);
+      setCreateError(friendlyError(err, 'This task'));
     } finally {
       setCreating(false);
     }
@@ -98,7 +133,7 @@ function FarmPlanner() {
       setEditingId(null);
       load();
     } catch (err) {
-      setError(err.message);
+      setError(friendlyError(err, 'This task'));
     }
   }
 
@@ -122,124 +157,147 @@ function FarmPlanner() {
       setGenerateNote(`Created ${data.count} tasks. ${data.disclaimer}`);
       load();
     } catch (err) {
-      setGenerateError(err.message);
+      setGenerateError(friendlyError(err, 'This crop'));
     } finally {
       setGenerating(false);
     }
   }
 
+  function renderTask(t, group) {
+    if (editingId === t.id) {
+      return (
+        <Card className="item-card task-card" key={t.id}>
+          <div className="form">
+            <div className="form-field">
+              <label htmlFor={`edit-title-${t.id}`}>Title</label>
+              <input id={`edit-title-${t.id}`} value={editForm.title} onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))} />
+            </div>
+            <div className="form-grid form-grid--2">
+              <div className="form-field">
+                <label htmlFor={`edit-type-${t.id}`}>Type</label>
+                <select id={`edit-type-${t.id}`} value={editForm.type} onChange={(e) => setEditForm((f) => ({ ...f, type: e.target.value }))}>
+                  {TASK_TYPES.map((ty) => (
+                    <option key={ty} value={ty}>
+                      {ty}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-field">
+                <label htmlFor={`edit-date-${t.id}`}>Due date</label>
+                <input
+                  id={`edit-date-${t.id}`}
+                  type="date"
+                  value={editForm.dueDate}
+                  onChange={(e) => setEditForm((f) => ({ ...f, dueDate: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="form-field">
+              <label htmlFor={`edit-notes-${t.id}`}>Notes</label>
+              <textarea
+                id={`edit-notes-${t.id}`}
+                rows={2}
+                value={editForm.notes}
+                onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+              />
+            </div>
+            <div className="form-actions">
+              <button type="button" className="btn btn-primary btn-sm" onClick={() => saveEdit(t.id)}>
+                Save
+              </button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditingId(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    return (
+      <Card className={`item-card task-card task-card--${group}`} key={t.id}>
+        <div className="item-card__header">
+          <h3 className="item-card__title">{t.title}</h3>
+          {group === 'overdue' ? <Badge variant="danger">Overdue</Badge> : <StatusBadge status={t.status} />}
+        </div>
+        <div className="item-card__meta">
+          <span>
+            <CalendarDays size={14} strokeWidth={2} aria-hidden="true" /> {formatDate(t.dueDate)}
+          </span>
+          <span className="chip">{t.type}</span>
+          {t.crop && (
+            <span>
+              <Sprout size={14} strokeWidth={2} aria-hidden="true" /> {t.crop.name}
+            </span>
+          )}
+        </div>
+        {t.notes && <p className="item-card__body">{t.notes}</p>}
+        {t.isAutoGenerated && <span className="meta">Auto-generated from crop schedule</span>}
+        <div className="item-card__footer">
+          {t.status !== 'Completed' && (
+            <Button size="sm" icon={Check} onClick={() => handleComplete(t.id)}>
+              Mark complete
+            </Button>
+          )}
+          <Button size="sm" variant="secondary" icon={Pencil} onClick={() => startEdit(t)}>
+            Edit
+          </Button>
+          <Button size="sm" variant="danger" icon={Trash2} onClick={() => handleDelete(t.id)} aria-label={`Delete ${t.title}`}>
+            Delete
+          </Button>
+        </div>
+      </Card>
+    );
+  }
+
+  const groups = groupTasks(tasks);
+
   return (
-    <div>
+    <Page>
       <PageHeader
-        eyebrow="Farm Planner"
-        title="Track every farm task"
-        description="Plan planting, irrigation, fertilizer, pest and harvest tasks for your farm."
+        eyebrow="Farm Intelligence"
+        pillar="farm"
+        title="Farm Planner"
+        description="Know what to do on your farm, and when - planting, irrigation, fertilizer, pest and harvest tasks."
+        actions={
+          <a href="#plan" className="btn btn-primary">
+            <Plus size={16} strokeWidth={2} aria-hidden="true" />
+            Add a task
+          </a>
+        }
       />
-      <div className="container" style={{ paddingBottom: '3rem' }}>
 
-      <div className="grid-2">
-        <div className="card">
-          <h2>Add a task</h2>
-          <form className="form" style={{ maxWidth: '100%', marginTop: 'var(--space-md)' }} onSubmit={handleCreate}>
-            <div className="form-field">
-              <label htmlFor="title">Title</label>
-              <input
-                id="title"
-                required
-                value={newTask.title}
-                onChange={(e) => setNewTask((t) => ({ ...t, title: e.target.value }))}
-              />
-            </div>
-            <div className="form-field">
-              <label htmlFor="type">Type</label>
-              <select id="type" value={newTask.type} onChange={(e) => setNewTask((t) => ({ ...t, type: e.target.value }))}>
-                {TASK_TYPES.map((ty) => (
-                  <option key={ty} value={ty}>
-                    {ty}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
-              <label htmlFor="dueDate">Due date</label>
-              <input
-                id="dueDate"
-                type="date"
-                required
-                value={newTask.dueDate}
-                onChange={(e) => setNewTask((t) => ({ ...t, dueDate: e.target.value }))}
-              />
-            </div>
-            <div className="form-field">
-              <label htmlFor="cropId">Related crop (optional)</label>
-              <select id="cropId" value={newTask.cropId} onChange={(e) => setNewTask((t) => ({ ...t, cropId: e.target.value }))}>
-                <option value="">None</option>
-                {crops.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
-              <label htmlFor="notes">Notes (optional)</label>
-              <textarea id="notes" rows={2} value={newTask.notes} onChange={(e) => setNewTask((t) => ({ ...t, notes: e.target.value }))} />
-            </div>
-            {createError && <p className="form-error">{createError}</p>}
-            <button type="submit" className="btn btn-primary" disabled={creating}>
-              {creating ? 'Adding...' : 'Add task'}
-            </button>
-          </form>
+      <div className="planner-summary">
+        <div className="planner-summary__item planner-summary__item--today">
+          <strong>{groups.today.length}</strong>
+          <span>Due today</span>
         </div>
-
-        <div className="card">
-          <h2>Generate tasks from a crop</h2>
-          <p className="form-hint">Creates one task per cultivation stage, spaced across the crop's typical duration.</p>
-          <form className="form" style={{ maxWidth: '100%', marginTop: 'var(--space-md)' }} onSubmit={handleGenerate}>
-            <div className="form-field">
-              <label htmlFor="genCrop">Crop</label>
-              <select
-                id="genCrop"
-                required
-                value={generateForm.cropId}
-                onChange={(e) => setGenerateForm((f) => ({ ...f, cropId: e.target.value }))}
-              >
-                <option value="">Select a crop</option>
-                {crops.map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
-              <label htmlFor="plantingDate">Planting date</label>
-              <input
-                id="plantingDate"
-                type="date"
-                required
-                value={generateForm.plantingDate}
-                onChange={(e) => setGenerateForm((f) => ({ ...f, plantingDate: e.target.value }))}
-              />
-            </div>
-            {generateError && <p className="form-error">{generateError}</p>}
-            {generateNote && <p className="form-success">{generateNote}</p>}
-            <button type="submit" className="btn btn-secondary" disabled={generating}>
-              {generating ? 'Generating...' : 'Generate tasks'}
-            </button>
-          </form>
+        <div className="planner-summary__item planner-summary__item--overdue">
+          <strong>{groups.overdue.length}</strong>
+          <span>Overdue</span>
         </div>
-      </div>
-
-      <div className="crop-toolbar" style={{ marginTop: 'var(--space-xl)' }}>
-        <h2 style={{ margin: 0 }}>My tasks</h2>
-        <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
-          <select value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
+        <div className="planner-summary__item">
+          <strong>{groups.upcoming.length}</strong>
+          <span>Upcoming</span>
+        </div>
+        <div className="planner-summary__item">
+          <strong>{groups.completed.length}</strong>
+          <span>Completed</span>
+        </div>
+        <div className="planner-summary__filters">
+          <label className="visually-hidden" htmlFor="filterStatus">
+            Filter by status
+          </label>
+          <select id="filterStatus" value={filters.status} onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}>
             <option value="">All statuses</option>
             <option value="Pending">Pending</option>
             <option value="Completed">Completed</option>
           </select>
-          <select value={filters.type} onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}>
+          <label className="visually-hidden" htmlFor="filterType">
+            Filter by type
+          </label>
+          <select id="filterType" value={filters.type} onChange={(e) => setFilters((f) => ({ ...f, type: e.target.value }))}>
             <option value="">All types</option>
             {TASK_TYPES.map((ty) => (
               <option key={ty} value={ty}>
@@ -250,85 +308,153 @@ function FarmPlanner() {
         </div>
       </div>
 
-      {status === 'loading' && <LoadingState label="Loading tasks..." />}
-      {status === 'error' && <p className="form-error">Unable to load tasks. {error}</p>}
+      {status === 'loading' && <SkeletonGrid count={3} label="Loading tasks..." />}
+      {status === 'error' && (
+        <Card>
+          <ErrorState title="Unable to load tasks" message={error} />
+        </Card>
+      )}
 
-      {status === 'ready' && (
-        <>
-          {tasks.length === 0 ? (
+      {status === 'ready' &&
+        (tasks.length === 0 ? (
+          <Card>
             <EmptyState
               icon={CalendarCheck}
-              title="No tasks yet"
-              description="Add one above, or generate a schedule from a crop."
+              title="No farm tasks"
+              description="Add a task below, or generate a schedule from a crop."
+              action={
+                <a href="#plan" className="btn btn-primary">
+                  Plan a task
+                </a>
+              }
             />
-          ) : (
-            <div className="crop-grid" style={{ marginTop: 'var(--space-md)' }}>
-              {tasks.map((t) => (
-                <div className="card card-hover crop-card" key={t.id}>
-                  {editingId === t.id ? (
-                    <>
-                      <input value={editForm.title} onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))} />
-                      <select value={editForm.type} onChange={(e) => setEditForm((f) => ({ ...f, type: e.target.value }))}>
-                        {TASK_TYPES.map((ty) => (
-                          <option key={ty} value={ty}>
-                            {ty}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="date"
-                        value={editForm.dueDate}
-                        onChange={(e) => setEditForm((f) => ({ ...f, dueDate: e.target.value }))}
-                      />
-                      <textarea
-                        rows={2}
-                        value={editForm.notes}
-                        onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
-                      />
-                      <div className="crop-card__footer">
-                        <button type="button" className="btn btn-primary" onClick={() => saveEdit(t.id)}>
-                          Save
-                        </button>
-                        <button type="button" className="btn btn-secondary" onClick={() => setEditingId(null)}>
-                          Cancel
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="crop-card__header">
-                        <span className="crop-card__name">{t.title}</span>
-                        <span className={t.status === 'Completed' ? 'badge badge-high' : 'badge badge-medium'}>{t.status}</span>
-                      </div>
-                      <p className="crop-card__score">
-                        {t.type} · Due {new Date(t.dueDate).toLocaleDateString('en-IN')}
-                        {t.crop ? ` · ${t.crop.name}` : ''}
-                      </p>
-                      {t.notes && <p className="crop-card__explanation">{t.notes}</p>}
-                      {t.isAutoGenerated && <p className="form-hint">Auto-generated</p>}
-                      <div className="crop-card__footer" style={{ gap: 'var(--space-sm)' }}>
-                        {t.status !== 'Completed' && (
-                          <button type="button" className="btn btn-primary" onClick={() => handleComplete(t.id)}>
-                            Mark complete
-                          </button>
-                        )}
-                        <button type="button" className="btn btn-secondary" onClick={() => startEdit(t)}>
-                          Edit
-                        </button>
-                        <button type="button" className="btn btn-secondary" onClick={() => handleDelete(t.id)}>
-                          Delete
-                        </button>
-                      </div>
-                    </>
-                  )}
+          </Card>
+        ) : (
+          GROUPS.map(({ key, title, description, icon: Icon }) =>
+            groups[key].length === 0 ? null : (
+              <Section
+                key={key}
+                title={
+                  <span className="inline-meta">
+                    <Icon size={20} strokeWidth={2} aria-hidden="true" /> {title} · {groups[key].length}
+                  </span>
+                }
+                description={description}
+              >
+                <div className="item-grid">{groups[key].map((t) => renderTask(t, key))}</div>
+              </Section>
+            )
+          )
+        ))}
+
+      <Section id="plan" title="Plan new work">
+        <div className="two-col">
+          <Card>
+            <form className="form" onSubmit={handleCreate}>
+              <Card.Header>
+                <Card.Title icon={Plus}>Add a task</Card.Title>
+              </Card.Header>
+              <div className="form-field">
+                <label htmlFor="title">Title</label>
+                <input
+                  id="title"
+                  required
+                  value={newTask.title}
+                  onChange={(e) => setNewTask((t) => ({ ...t, title: e.target.value }))}
+                />
+              </div>
+              <div className="form-grid form-grid--2">
+                <div className="form-field">
+                  <label htmlFor="type">Type</label>
+                  <select id="type" value={newTask.type} onChange={(e) => setNewTask((t) => ({ ...t, type: e.target.value }))}>
+                    {TASK_TYPES.map((ty) => (
+                      <option key={ty} value={ty}>
+                        {ty}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-      </div>
-    </div>
+                <div className="form-field">
+                  <label htmlFor="dueDate">Due date</label>
+                  <input
+                    id="dueDate"
+                    type="date"
+                    required
+                    value={newTask.dueDate}
+                    onChange={(e) => setNewTask((t) => ({ ...t, dueDate: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="form-field">
+                <label htmlFor="cropId">Related crop (optional)</label>
+                <select id="cropId" value={newTask.cropId} onChange={(e) => setNewTask((t) => ({ ...t, cropId: e.target.value }))}>
+                  <option value="">None</option>
+                  {crops.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-field">
+                <label htmlFor="notes">Notes (optional)</label>
+                <textarea id="notes" rows={2} value={newTask.notes} onChange={(e) => setNewTask((t) => ({ ...t, notes: e.target.value }))} />
+              </div>
+              {createError && <p className="form-error">{createError}</p>}
+              <div className="form-actions">
+                <button type="submit" className="btn btn-primary" disabled={creating}>
+                  <Plus size={16} strokeWidth={2} aria-hidden="true" />
+                  {creating ? 'Adding...' : 'Add task'}
+                </button>
+              </div>
+            </form>
+          </Card>
+
+          <Card>
+            <form className="form" onSubmit={handleGenerate}>
+              <Card.Header>
+                <Card.Title icon={Wand2}>Generate tasks from a crop</Card.Title>
+                <Card.Description>Creates one task per cultivation stage, spaced across the crop&apos;s typical duration.</Card.Description>
+              </Card.Header>
+              <div className="form-field">
+                <label htmlFor="genCrop">Crop</label>
+                <select
+                  id="genCrop"
+                  required
+                  value={generateForm.cropId}
+                  onChange={(e) => setGenerateForm((f) => ({ ...f, cropId: e.target.value }))}
+                >
+                  <option value="">Select a crop</option>
+                  {crops.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="form-field">
+                <label htmlFor="plantingDate">Planting date</label>
+                <input
+                  id="plantingDate"
+                  type="date"
+                  required
+                  value={generateForm.plantingDate}
+                  onChange={(e) => setGenerateForm((f) => ({ ...f, plantingDate: e.target.value }))}
+                />
+              </div>
+              {generateError && <p className="form-error">{generateError}</p>}
+              {generateNote && <p className="form-success">{generateNote}</p>}
+              <div className="form-actions">
+                <button type="submit" className="btn btn-secondary" disabled={generating}>
+                  <Wand2 size={16} strokeWidth={2} aria-hidden="true" />
+                  {generating ? 'Generating...' : 'Generate tasks'}
+                </button>
+              </div>
+            </form>
+          </Card>
+        </div>
+      </Section>
+    </Page>
   );
 }
 

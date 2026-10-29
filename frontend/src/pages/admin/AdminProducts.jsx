@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import LoadingState from '../../components/LoadingState';
+import { ErrorState } from '../../components/EmptyState';
 import { useAuth } from '../../hooks/useAuth';
 import { getCrops } from '../../services/cropService';
 import { listAdminProducts, createAdminProduct, updateAdminProduct, deleteAdminProduct } from '../../services/adminService';
@@ -92,11 +94,10 @@ function AdminProducts() {
 
   return (
     <>
-      <h2>Products</h2>
 
-      <div className="card" style={{ maxWidth: 560, marginTop: 'var(--space-md)' }}>
+      <div className="card admin-form-card">
         <h3>{editingId ? 'Edit product' : 'Add product'}</h3>
-        <form className="form" style={{ maxWidth: '100%' }} onSubmit={handleSubmit}>
+        <form className="form" onSubmit={handleSubmit}>
           <div className="form-field">
             <label>Name</label>
             <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
@@ -139,7 +140,7 @@ function AdminProducts() {
 
           {saveError && <p className="form-error">{saveError}</p>}
 
-          <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+          <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving...' : editingId ? 'Save changes' : 'Add product'}
             </button>
@@ -152,11 +153,11 @@ function AdminProducts() {
         </form>
       </div>
 
-      {status === 'loading' && <p style={{ marginTop: 'var(--space-lg)' }}>Loading products...</p>}
-      {status === 'error' && <p className="form-error">Unable to load products. {error}</p>}
+      {status === 'loading' && <LoadingState label="Loading products..." />}
+      {status === 'error' && <ErrorState title="Unable to load products" message={error} />}
 
       {status === 'ready' && (
-        <div className="compare-table-wrap" style={{ marginTop: 'var(--space-lg)' }}>
+        <div className="table-wrap admin-table-wrap">
           <table className="compare-table">
             <thead>
               <tr>
@@ -176,7 +177,7 @@ function AdminProducts() {
                   <td>{p.crop?.name || '-'}</td>
                   <td>₹{p.estimatedPrice} {p.unit}</td>
                   <td>{p.purchaseUrl ? 'Available' : 'Unavailable'}</td>
-                  <td style={{ display: 'flex', gap: 'var(--space-xs)' }}>
+                  <td className="table-actions">
                     <button type="button" className="btn btn-secondary" onClick={() => startEdit(p)}>Edit</button>
                     <button type="button" className="btn btn-secondary" onClick={() => handleDelete(p._id)}>Delete</button>
                   </td>

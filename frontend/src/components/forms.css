@@ -2,7 +2,39 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
-  max-width: 480px;
+}
+
+/* Responsive field grid: filters, multi-field forms. Stacks on mobile. */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--space-md);
+}
+
+.form-grid--2 {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 640px) {
+  .form-grid--2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Filter cards fit all filters on one row on wide screens. */
+.filter-card .form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+}
+
+.form-field--full {
+  grid-column: 1 / -1;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  align-items: center;
 }
 
 .form-field {
@@ -13,17 +45,19 @@
 
 .form-field label {
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   color: var(--color-text);
 }
 
 .form-field input,
 .form-field select,
 .form-field textarea {
-  padding: 0.7rem 0.9rem;
+  min-height: 44px;
+  width: 100%;
+  padding: 0.6rem 0.9rem;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  font-size: 1rem;
+  font-size: 0.9375rem;
   font-family: inherit;
   background: var(--color-surface);
   color: var(--color-text);
@@ -34,6 +68,33 @@
 .form-field textarea::placeholder {
   color: var(--color-text-muted);
   opacity: 0.7;
+}
+
+.form-field input[type='checkbox'],
+.form-field input[type='radio'] {
+  min-height: 0;
+  width: auto;
+}
+
+.form-field textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: var(--color-primary-600);
+  width: 1rem;
+  height: 1rem;
+}
+
+.form-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
 }
 
 .form-field input:focus,
@@ -105,4 +166,61 @@
 .form-hint {
   font-size: 0.8rem;
   color: var(--color-text-muted);
+}
+
+/* ---- Fieldsets, checkbox chips, history rows ---- */
+.form-fieldset {
+  border: none;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.form-fieldset legend {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-text);
+  margin-bottom: var(--space-sm);
+  padding: 0;
+}
+
+.form-checkbox-group label {
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.form-checkbox-group label.is-checked {
+  background: var(--color-primary-50);
+  border-color: var(--color-primary-400);
+  color: var(--color-primary-700);
+}
+
+.form-check--card {
+  padding: var(--space-3) var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px auto;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-sm);
+}
+
+.history-row input {
+  min-height: 44px;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 0.9375rem;
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+.history-row input:focus {
+  outline: none;
+  border-color: var(--color-primary-500);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
 }

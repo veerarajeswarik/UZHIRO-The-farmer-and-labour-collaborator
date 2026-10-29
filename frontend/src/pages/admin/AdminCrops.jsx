@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import LoadingState from '../../components/LoadingState';
+import { ErrorState } from '../../components/EmptyState';
 import { useAuth } from '../../hooks/useAuth';
 import { listAdminCrops, createAdminCrop, updateAdminCrop, deleteAdminCrop } from '../../services/adminService';
 
@@ -108,11 +110,10 @@ function AdminCrops() {
 
   return (
     <>
-      <h2>Crops</h2>
 
-      <div className="card" style={{ maxWidth: 640, marginTop: 'var(--space-md)' }}>
+      <div className="card admin-form-card">
         <h3>{editingId ? 'Edit crop' : 'Add crop'}</h3>
-        <form className="form" style={{ maxWidth: '100%' }} onSubmit={handleSubmit}>
+        <form className="form" onSubmit={handleSubmit}>
           <div className="form-field">
             <label>Name</label>
             <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
@@ -170,7 +171,7 @@ function AdminCrops() {
 
           {saveError && <p className="form-error">{saveError}</p>}
 
-          <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+          <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving...' : editingId ? 'Save changes' : 'Add crop'}
             </button>
@@ -181,23 +182,23 @@ function AdminCrops() {
             )}
           </div>
         </form>
-        <p className="form-hint" style={{ marginTop: 'var(--space-sm)' }}>
+        <p className="form-hint">
           Economics (costs, yield, selling price) and cultivation stages can be added via the API directly for now -
           this form covers the core fields needed for crop selection to work.
         </p>
       </div>
 
-      {status === 'loading' && <p style={{ marginTop: 'var(--space-lg)' }}>Loading crops...</p>}
-      {status === 'error' && <p className="form-error">Unable to load crops. {error}</p>}
+      {status === 'loading' && <LoadingState label="Loading crops..." />}
+      {status === 'error' && <ErrorState title="Unable to load crops" message={error} />}
 
       {status === 'ready' && (
-        <div className="crop-grid" style={{ marginTop: 'var(--space-lg)' }}>
+        <div className="item-grid admin-list">
           {crops.map((c) => (
-            <div className="card crop-card" key={c._id}>
-              <span className="crop-card__name">{c.name}</span>
-              <p className="crop-card__score">{c.suitableSoils.join(', ')} · {c.waterRequirement} water</p>
-              <p className="crop-card__explanation">{c.description}</p>
-              <div className="crop-card__footer">
+            <div className="card item-card" key={c._id}>
+              <span className="item-card__title">{c.name}</span>
+              <p className="meta">{c.suitableSoils.join(', ')} · {c.waterRequirement} water</p>
+              <p className="item-card__body clamp-3">{c.description}</p>
+              <div className="item-card__footer">
                 <button type="button" className="btn btn-secondary" onClick={() => startEdit(c)}>
                   Edit
                 </button>

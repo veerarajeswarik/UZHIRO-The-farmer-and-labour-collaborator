@@ -10,6 +10,10 @@ async function connectDB() {
   const uri = process.env.MONGODB_URI;
 
   if (!uri) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error('[db] MONGODB_URI is required in production. Set it in your hosting environment settings.');
+      process.exit(1);
+    }
     console.warn(
       '[db] MONGODB_URI is not set. Skipping database connection - set it in backend/.env to enable data features.'
     );

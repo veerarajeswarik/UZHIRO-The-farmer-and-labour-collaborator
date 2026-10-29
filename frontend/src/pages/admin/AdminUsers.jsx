@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import LoadingState from '../../components/LoadingState';
+import { ErrorState } from '../../components/EmptyState';
 import { useAuth } from '../../hooks/useAuth';
 import { listUsers, deactivateUser, activateUser, deleteUser } from '../../services/adminService';
 
@@ -48,9 +50,8 @@ function AdminUsers() {
 
   return (
     <>
-      <h2>Users</h2>
 
-      <div className="crop-toolbar" style={{ marginTop: 'var(--space-md)' }}>
+      <div className="crop-toolbar">
         <select value={filters.role} onChange={(e) => setFilters((f) => ({ ...f, role: e.target.value }))}>
           <option value="">All roles</option>
           <option value="farmer">Farmer</option>
@@ -62,11 +63,11 @@ function AdminUsers() {
 
       {actionError && <p className="form-error">{actionError}</p>}
 
-      {status === 'loading' && <p>Loading users...</p>}
-      {status === 'error' && <p className="form-error">Unable to load users. {error}</p>}
+      {status === 'loading' && <LoadingState label="Loading users..." />}
+      {status === 'error' && <ErrorState title="Unable to load users" message={error} />}
 
       {status === 'ready' && (
-        <div className="compare-table-wrap" style={{ marginTop: 'var(--space-md)' }}>
+        <div className="table-wrap admin-table-wrap">
           <table className="compare-table">
             <thead>
               <tr>
@@ -86,9 +87,9 @@ function AdminUsers() {
                   <td>{u.role}</td>
                   <td>{u.location}</td>
                   <td>
-                    <span className={u.isActive ? 'badge badge-high' : 'badge badge-low'}>{u.isActive ? 'Active' : 'Inactive'}</span>
+                    <span className={u.isActive ? 'badge badge--success' : 'badge badge--danger'}>{u.isActive ? 'Active' : 'Inactive'}</span>
                   </td>
-                  <td style={{ display: 'flex', gap: 'var(--space-xs)' }}>
+                  <td className="table-actions">
                     <button type="button" className="btn btn-secondary" disabled={u.id === currentUser.id} onClick={() => handleToggleActive(u)}>
                       {u.isActive ? 'Deactivate' : 'Activate'}
                     </button>

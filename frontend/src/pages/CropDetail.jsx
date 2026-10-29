@@ -1,10 +1,42 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import {
+  Calculator,
+  ShoppingCart,
+  Mountain,
+  Droplets,
+  CalendarDays,
+  Sun,
+  Sparkles,
+  ThumbsUp,
+  AlertTriangle,
+  Bug,
+  ListOrdered,
+  Wallet,
+  LineChart,
+  ArrowRight,
+} from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getCropById, explainCrop } from '../services/cropService';
 import { getMarketPrice } from '../services/marketPriceService';
+import { friendlyError } from '../services/errors';
+import Page, { Section } from '../components/Page';
+import PageHeader from '../components/PageHeader';
+import Card from '../components/Card';
+import Button from '../components/Button';
+import StatCard from '../components/StatCard';
+import Badge, { StatusBadge } from '../components/Badge';
+import { ErrorState } from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
+
+const ECON_ROWS = [
+  ['seedCostPerAcre', 'Seed'],
+  ['fertilizerCostPerAcre', 'Fertilizer'],
+  ['labourCostPerAcre', 'Labour'],
+  ['irrigationCostPerAcre', 'Irrigation'],
+  ['cropProtectionCostPerAcre', 'Pesticides / crop protection'],
+  ['otherCostPerAcre', 'Other'],
+];
 
 function currency(n) {
   return `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
@@ -34,7 +66,7 @@ function CropDetail() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err.message);
+          setError(friendlyError(err, 'This crop'));
           setStatus('error');
         }
       });
@@ -58,200 +90,290 @@ function CropDetail() {
       setExplainData(data);
       setExplainStatus('ready');
     } catch (err) {
-      setExplainError(err.message);
+      setExplainError(friendlyError(err, 'This explanation'));
       setExplainStatus('error');
     }
   }
 
+  const isFarmer = isAuthenticated && user.role === 'farmer';
+  const back = isFarmer ? { to: '/crops', label: 'Back to Crop Selection' } : undefined;
+
   if (status === 'loading') {
-    return <LoadingState label="Loading crop details..." />;
+    return (
+      <Page>
+        <PageHeader back={back} eyebrow="Farm Intelligence" pillar="farm" title="Loading crop..." />
+        <LoadingState label="Loading crop details..." />
+      </Page>
+    );
   }
 
   if (status === 'error') {
     return (
-      <div className="container error-state">
-        <p>Unable to load this crop. {error}</p>
-      </div>
+      <Page>
+        <PageHeader back={back} eyebrow="Farm Intelligence" pillar="farm" title="Crop details" />
+        <Card>
+          <ErrorState title="Unable to load this crop" message={error} />
+        </Card>
+      </Page>
     );
   }
 
+  const e = crop.economics;
+
   return (
-    <div className="container" style={{ padding: '3rem 0' }}>
-      <Link to="/crops" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
-        <ArrowLeft size={16} strokeWidth={2} /> Back to crop selection
-      </Link>
-
-      <h1 style={{ marginTop: 'var(--space-md)' }}>{crop.name}</h1>
-      <p style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-sm)' }}>{crop.description}</p>
-
-      {crop.economics && (
-        <div style={{ marginTop: 'var(--space-md)', display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
-          <Link to={`/profit?cropId=${crop._id}`} className="btn btn-primary">
-            Estimate cost &amp; profit for this crop
-          </Link>
-          <Link to={`/inputs?cropId=${crop._id}`} className="btn btn-secondary">
-            View input shopping list
-          </Link>
-        </div>
-      )}
-
-      {marketPrice && (
-        <div className="card" style={{ marginTop: 'var(--space-lg)', maxWidth: 480 }}>
-          <h2>Market price</h2>
-          {marketPrice.available ? (
+    <Page>
+      <PageHeader
+        back={back}
+        eyebrow="Farm Intelligence · Crop details"
+        pillar="farm"
+        title={crop.name}
+        description={crop.description}
+        actions={
+          e && (
             <>
-              <p style={{ fontSize: 'var(--font-size-lg)', fontWeight: 700, marginTop: 'var(--space-sm)' }}>
-                {currency(marketPrice.modalPrice)} {marketPrice.unit}
-              </p>
-              <p className="form-hint">
-                {marketPrice.market}
-                {marketPrice.location ? ` (${marketPrice.location})` : ''} · Range {currency(marketPrice.minPrice)}
-                {' - '}
-                {currency(marketPrice.maxPrice)}
-              </p>
-              <p className="form-hint">{marketPrice.updatedLabel}</p>
-              <p className="form-hint">Source: {marketPrice.source}</p>
-              {marketPrice.stale && <p className="form-error">{marketPrice.staleNote}</p>}
+              <Button to={`/profit?cropId=${crop._id}`} icon={Calculator}>
+                Estimate cost &amp; profit
+              </Button>
+              <Button to={`/inputs?cropId=${crop._id}`} variant="secondary" icon={ShoppingCart}>
+                Input shopping list
+              </Button>
             </>
-          ) : (
-            <>
-              <p className="form-hint">{marketPrice.message}</p>
-              {marketPrice.fallback && (
-                <p className="form-hint">
-                  Example estimate: {currency(marketPrice.fallback.price)} {marketPrice.fallback.unit} -{' '}
-                  {marketPrice.fallback.label}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      )}
+          )
+        }
+      />
 
-      <div className="crop-grid" style={{ marginTop: 'var(--space-xl)' }}>
-        <div className="card">
-          <h2>At a glance</h2>
-          <ul>
-            <li>Suitable soils: {crop.suitableSoils.join(', ')}</li>
-            <li>Water requirement: {crop.waterRequirement}</li>
-            <li>Suitable seasons: {crop.suitableSeasons.join(', ')}</li>
-            <li>Cultivation duration: ~{crop.cultivationDurationDays} days</li>
-            <li>Seed requirement: {crop.seedRequirementPerAcreKg} kg/acre</li>
-          </ul>
-        </div>
-
-        <div className="card">
-          <h2>Advantages</h2>
-          <ul>
-            {crop.advantages.map((a) => (
-              <li key={a}>{a}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="card">
-          <h2>Things to consider</h2>
-          <ul>
-            {crop.considerations.map((c) => (
-              <li key={c}>{c}</li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="card">
-          <h2>Common pests</h2>
-          <ul>
-            {crop.commonPests.map((p) => (
-              <li key={p}>{p}</li>
-            ))}
-          </ul>
-        </div>
+      <div className="stat-grid">
+        <StatCard icon={Mountain} label="Suitable soils" value={crop.suitableSoils.join(', ')} />
+        <StatCard icon={Droplets} label="Water requirement" value={crop.waterRequirement} />
+        <StatCard icon={CalendarDays} label="Growing duration" value={`~${crop.cultivationDurationDays} days`} />
+        <StatCard icon={Sun} label="Seasons" value={crop.suitableSeasons.join(', ')} meta={`Seed: ${crop.seedRequirementPerAcreKg} kg/acre`} />
       </div>
 
-      <div className="card" style={{ marginTop: 'var(--space-lg)' }}>
-        <h2>Cultivation stages</h2>
-        <ol>
-          {crop.cultivationStages.map((s) => (
-            <li key={s.stage} style={{ marginTop: 'var(--space-xs)' }}>
-              <strong>{s.stage}:</strong> {s.description}
-            </li>
-          ))}
-        </ol>
-      </div>
-
-      {isAuthenticated && user.role === 'farmer' && (
-        <div className="card" style={{ marginTop: 'var(--space-lg)' }}>
-          <h2>Why this crop may suit your farm</h2>
-
-          {explainStatus === 'idle' && (
-            <>
-              <p className="form-hint">
-                Get an AI-generated explanation of this crop's suitability score for your farm, grounded in your
-                farm profile and this crop's real data.
-              </p>
-              <button type="button" className="btn btn-secondary" onClick={handleExplain} style={{ marginTop: 'var(--space-sm)' }}>
-                Explain this crop for my farm
-              </button>
-            </>
-          )}
-
-          {explainStatus === 'loading' && <p className="form-hint">Generating explanation...</p>}
-
-          {explainStatus === 'error' && <p className="form-error">Unable to generate an explanation. {explainError}</p>}
-
-          {explainStatus === 'ready' && explainData && (
-            <>
-              <p style={{ fontWeight: 700, marginTop: 'var(--space-sm)' }}>
-                Suitability: {explainData.score}/100 ({explainData.level}) - {explainData.season} season
-              </p>
-              <p className="form-hint">{explainData.explanation}</p>
-
-              {explainData.aiExplanation.available ? (
-                <>
-                  <span className="badge badge-high" style={{ marginTop: 'var(--space-md)', display: 'inline-block' }}>
-                    AI-generated
-                  </span>
-                  <p style={{ marginTop: 'var(--space-sm)' }}>{explainData.aiExplanation.whySuited}</p>
-
-                  <h3 style={{ marginTop: 'var(--space-md)' }}>Advantages</h3>
-                  <ul>
-                    {explainData.aiExplanation.advantages.map((a, i) => (
-                      <li key={i}>{a}</li>
-                    ))}
-                  </ul>
-
-                  <h3 style={{ marginTop: 'var(--space-md)' }}>Things to consider</h3>
-                  <ul>
-                    {explainData.aiExplanation.considerations.map((c, i) => (
-                      <li key={i}>{c}</li>
-                    ))}
-                  </ul>
-
-                  <h3 style={{ marginTop: 'var(--space-md)' }}>How to prepare</h3>
-                  <ol>
-                    {explainData.aiExplanation.howToPrepare.map((s, i) => (
-                      <li key={i}>{s}</li>
-                    ))}
-                  </ol>
-                </>
-              ) : (
-                <p className="form-hint" style={{ marginTop: 'var(--space-sm)' }}>
-                  AI explanation is not available right now - the suitability score and explanation above are
-                  still fully valid on their own (see "Advantages" and "Things to consider" earlier on this page).
+      {isFarmer && (
+        <Section title="Why it may suit your farm">
+          <Card>
+            {explainStatus === 'idle' && (
+              <div className="cta-row">
+                <p className="item-card__body">
+                  Get an explanation of this crop&apos;s suitability score for your farm, grounded in your farm profile and
+                  this crop&apos;s data.
                 </p>
-              )}
+                <Button variant="secondary" icon={Sparkles} onClick={handleExplain}>
+                  Explain this crop for my farm
+                </Button>
+              </div>
+            )}
 
-              <p className="form-hint" style={{ marginTop: 'var(--space-md)' }}>
-                {explainData.disclaimer}
-              </p>
-            </>
-          )}
-        </div>
+            {explainStatus === 'loading' && <LoadingState label="Generating explanation..." />}
+
+            {explainStatus === 'error' && (
+              <ErrorState
+                title="Unable to generate an explanation"
+                message={explainError}
+                action={
+                  <Button variant="secondary" size="sm" onClick={handleExplain}>
+                    Try again
+                  </Button>
+                }
+              />
+            )}
+
+            {explainStatus === 'ready' && explainData && (
+              <div className="stack">
+                <div className="explain-score">
+                  <StatusBadge status={explainData.level} label={`${explainData.level} suitability`} />
+                  <strong>{explainData.score}/100</strong>
+                  <span className="meta">{explainData.season} season</span>
+                </div>
+                <p className="prose">{explainData.explanation}</p>
+
+                {explainData.aiExplanation.available ? (
+                  <>
+                    <div>
+                      <Badge variant="info">AI-generated</Badge>
+                      <p className="prose explain-why">{explainData.aiExplanation.whySuited}</p>
+                    </div>
+                    <div className="two-col">
+                      <div>
+                        <h3 className="list-heading">Advantages</h3>
+                        <ul className="check-list">
+                          {explainData.aiExplanation.advantages.map((a, i) => (
+                            <li key={i}>{a}</li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div>
+                        <h3 className="list-heading">Things to consider</h3>
+                        <ul className="check-list check-list--warn">
+                          {explainData.aiExplanation.considerations.map((c, i) => (
+                            <li key={i}>{c}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="list-heading">How to prepare</h3>
+                      <ol className="step-list">
+                        {explainData.aiExplanation.howToPrepare.map((st, i) => (
+                          <li key={i}>{st}</li>
+                        ))}
+                      </ol>
+                    </div>
+                  </>
+                ) : (
+                  <p className="meta">
+                    AI explanation is not available right now - the suitability score and explanation above are still
+                    fully valid on their own (see Advantages and Things to consider below).
+                  </p>
+                )}
+                <p className="form-hint">{explainData.disclaimer}</p>
+              </div>
+            )}
+          </Card>
+        </Section>
       )}
 
-      <p className="form-hint" style={{ marginTop: 'var(--space-lg)' }}>
+      <Section title="Growing this crop">
+        <div className="two-col">
+          <Card>
+            <Card.Header>
+              <Card.Title icon={ThumbsUp}>Advantages</Card.Title>
+            </Card.Header>
+            <ul className="check-list">
+              {crop.advantages.map((a) => (
+                <li key={a}>{a}</li>
+              ))}
+            </ul>
+          </Card>
+          <Card>
+            <Card.Header>
+              <Card.Title icon={AlertTriangle}>Things to consider</Card.Title>
+            </Card.Header>
+            <ul className="check-list check-list--warn">
+              {crop.considerations.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ul>
+          </Card>
+          <Card>
+            <Card.Header>
+              <Card.Title icon={Bug}>Common pests</Card.Title>
+            </Card.Header>
+            <div className="chip-row">
+              {crop.commonPests.map((pst) => (
+                <span className="chip" key={pst}>
+                  {pst}
+                </span>
+              ))}
+            </div>
+          </Card>
+          <Card>
+            <Card.Header>
+              <Card.Title icon={ListOrdered}>Cultivation stages</Card.Title>
+            </Card.Header>
+            <ol className="step-list">
+              {crop.cultivationStages.map((st) => (
+                <li key={st.stage}>
+                  <strong>{st.stage}:</strong> {st.description}
+                </li>
+              ))}
+            </ol>
+          </Card>
+        </div>
+      </Section>
+
+      {(e || marketPrice) && (
+        <Section title="Economics">
+          <div className="two-col">
+            {e && (
+              <Card>
+                <Card.Header actions={<Badge variant="warning">Example</Badge>}>
+                  <Card.Title icon={Wallet}>Example economics per acre</Card.Title>
+                  <Card.Description>
+                    {e.note || 'Prototype example figures - use the Cost & Profit estimator with your own values.'}
+                  </Card.Description>
+                </Card.Header>
+                <dl className="detail-list detail-list--compact">
+                  {ECON_ROWS.map(([key, label]) => (
+                    <div className="detail-list__row" key={key}>
+                      <dt>{label}</dt>
+                      <dd>{currency(e[key])}</dd>
+                    </div>
+                  ))}
+                  <div className="detail-list__row">
+                    <dt>Expected yield</dt>
+                    <dd>{Number(e.yieldPerAcreKg).toLocaleString('en-IN')} kg / acre</dd>
+                  </div>
+                  <div className="detail-list__row">
+                    <dt>Selling price</dt>
+                    <dd>{currency(e.sellingPricePerKg)} / kg</dd>
+                  </div>
+                </dl>
+                <Card.Footer>
+                  <Button to={`/profit?cropId=${crop._id}`} size="sm" icon={ArrowRight} iconPosition="right">
+                    Calculate for my land
+                  </Button>
+                </Card.Footer>
+              </Card>
+            )}
+
+            {marketPrice && (
+              <Card>
+                <Card.Header>
+                  <Card.Title icon={LineChart}>Market price</Card.Title>
+                </Card.Header>
+                {marketPrice.available ? (
+                  <>
+                    <p className="big-number">
+                      {currency(marketPrice.modalPrice)} <span className="meta">{marketPrice.unit}</span>
+                    </p>
+                    <p className="meta">
+                      {marketPrice.market}
+                      {marketPrice.location ? ` (${marketPrice.location})` : ''} · Range {currency(marketPrice.minPrice)} -{' '}
+                      {currency(marketPrice.maxPrice)}
+                    </p>
+                    <p className="meta">{marketPrice.updatedLabel}</p>
+                    <p className="meta">Source: {marketPrice.source}</p>
+                    {marketPrice.stale && <p className="notice notice--warning">{marketPrice.staleNote}</p>}
+                  </>
+                ) : (
+                  <>
+                    <p className="meta">{marketPrice.message}</p>
+                    {marketPrice.fallback && (
+                      <p className="meta">
+                        Example estimate: {currency(marketPrice.fallback.price)} {marketPrice.fallback.unit} -{' '}
+                        {marketPrice.fallback.label}
+                      </p>
+                    )}
+                  </>
+                )}
+              </Card>
+            )}
+          </div>
+        </Section>
+      )}
+
+      {e && (
+        <Card className="next-step">
+          <div>
+            <h2 className="card__title">Next step</h2>
+            <p className="meta">See what {crop.name} could cost and earn on your land, then plan your inputs.</p>
+          </div>
+          <div className="form-actions">
+            <Button to={`/profit?cropId=${crop._id}`} icon={ArrowRight} iconPosition="right">
+              Estimate cost &amp; profit
+            </Button>
+            <Button to={`/inputs?cropId=${crop._id}`} variant="secondary">
+              View input list
+            </Button>
+          </div>
+        </Card>
+      )}
+
+      <p className="form-hint page-disclaimer">
         Source: {crop.source} Last updated: {new Date(crop.lastUpdated).toLocaleDateString()}.
       </p>
-    </div>
+    </Page>
   );
 }
 

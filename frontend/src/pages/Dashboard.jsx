@@ -13,255 +13,353 @@ import {
   ClipboardList,
   BookOpen,
   ArrowRight,
+  Ruler,
+  Mountain,
+  Droplets,
+  CalendarCheck,
+  Brain,
+  Handshake,
+  UserCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getDashboard } from '../services/dashboardService';
-import PageHero from '../components/PageHero';
-import SectionHeader from '../components/SectionHeader';
+import { friendlyError } from '../services/errors';
+import Page, { Section } from '../components/Page';
+import PageHeader from '../components/PageHeader';
 import StatCard from '../components/StatCard';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import ActionCard from '../components/ActionCard';
+import IconTile from '../components/IconTile';
 import { StatusBadge } from '../components/Badge';
-import EmptyState from '../components/EmptyState';
+import EmptyState, { ErrorState } from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
+import { currency, formatDate, greeting } from '../utils/format';
 
-function currency(n) {
-  return `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-}
+const FARM_ACTIONS = [
+  { to: '/crops', icon: Sprout, title: 'Crop Selection', description: 'Find suitable crops based on your farm conditions.' },
+  { to: '/profit', icon: Calculator, title: 'Cost & Profit', description: 'Understand estimated costs, revenue and profit.' },
+  { to: '/planner', icon: CalendarCheck, title: 'Farm Planner', description: 'Manage upcoming farm activities.' },
+  { to: '/assistant', icon: Bot, title: 'AI Assistant', description: 'Ask farming-related questions.' },
+];
 
-const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=1600&q=80';
+const LABOUR_ACTIONS = [
+  { to: '/labourers', icon: Users, title: 'Find Labour', description: 'Search available agricultural workers.' },
+  { to: '/hiring', icon: ClipboardList, title: 'Hiring Requests', description: 'Track your labour requests.' },
+];
 
 const QUICK_ACTIONS = [
   { label: 'Find Crops', to: '/crops', icon: Sprout },
   { label: 'Compare Crops', to: '/crops/compare', icon: ListChecks },
   { label: 'Estimate Profit', to: '/profit', icon: Calculator },
-  { label: 'Find Labour', to: '/labourers', icon: Users },
+  { label: 'Find Labour', to: '/labourers', icon: Users, tone: 'labour' },
   { label: 'Ask AI', to: '/assistant', icon: Bot },
 ];
 
-function QuickActions() {
-  return (
-    <div className="grid-auto" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
-      {QUICK_ACTIONS.map((a) => (
-        <Card as={Link} to={a.to} hover key={a.label} style={{ textAlign: 'center', textDecoration: 'none' }}>
-          <span
-            aria-hidden="true"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '2.75rem',
-              height: '2.75rem',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-primary-100)',
-              color: 'var(--color-primary-700)',
-              margin: '0 auto var(--space-sm)',
-            }}
-          >
-            <a.icon size={20} strokeWidth={2} />
-          </span>
-          <div style={{ fontWeight: 700, color: 'var(--color-text)' }}>{a.label}</div>
-        </Card>
-      ))}
-    </div>
-  );
+function notSet(value, suffix = '') {
+  return value != null && value !== '' ? `${value}${suffix}` : 'Not set';
 }
 
 function FarmerDashboard({ data }) {
   const { farmSummary, topCropRecommendation, financialSummary, upcomingTasks, weather, recentHiringRequests, learningRecommendations } =
     data;
+  const pendingRequests = recentHiringRequests.filter((r) => r.status === 'Pending').length;
 
   return (
-    <>
-      <PageHero
-        compact
-        image={HERO_IMAGE}
+    <Page>
+      <PageHeader
         eyebrow={`Season: ${data.season}`}
-        title={<>Better decisions for a <em>greener</em> tomorrow.</>}
-        description={`Welcome back, ${data.welcomeName}. Here's where your farm stands today.`}
+        title={`${greeting()}, ${data.welcomeName}`}
+        description="Your farm at a glance - and the next useful thing you can do today."
+        actions={
+          <>
+            <Button to="/crops" variant="secondary" icon={Sprout}>
+              Choose a crop
+            </Button>
+            <Button to="/labourers" icon={Users}>
+              Find labour
+            </Button>
+          </>
+        }
       />
 
-      <div className="container" style={{ marginTop: '-2.5rem', position: 'relative', zIndex: 1 }}>
-        <div className="grid-auto">
-          <StatCard
-            icon={MapPin}
-            label="My Farm"
-            value={farmSummary.landAreaAcres != null ? `${farmSummary.landAreaAcres} acres` : 'Not set'}
-            meta={farmSummary.location}
-          />
-          <StatCard
-            icon={Sprout}
-            label="Top Crop Recommendation"
-            value={topCropRecommendation ? topCropRecommendation.crop.name : 'Complete profile'}
-            meta={topCropRecommendation ? `${topCropRecommendation.level} suitability - ${topCropRecommendation.score}/100` : 'to unlock'}
-          />
-          <StatCard
-            icon={Wallet}
-            label="Estimated Profit"
-            value={financialSummary ? currency(financialSummary.estimatedProfit) : '—'}
-            meta={financialSummary ? `for ${financialSummary.crop.name}` : 'Set land area first'}
-          />
-          <StatCard
-            icon={ClipboardList}
-            label="Upcoming Tasks"
-            value={upcomingTasks.length}
-            meta="on your farm planner"
-          />
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="container">
-          <SectionHeader eyebrow="Get moving" title="Quick actions" />
-          <QuickActions />
-        </div>
-      </div>
-
-      <div className="section section--cream">
-        <div className="container">
-          <SectionHeader eyebrow="Recommended for you" title="Your top crop match" />
-          {topCropRecommendation ? (
-            <Card hover style={{ maxWidth: 520 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 'var(--space-sm)' }}>
-                <span className="crop-card__name">{topCropRecommendation.crop.name}</span>
-                <span className={`badge badge-${topCropRecommendation.level.toLowerCase()}`}>{topCropRecommendation.level}</span>
-              </div>
-              <div className="progress-bar" style={{ marginTop: 'var(--space-sm)' }}>
-                <div className="progress-bar__fill" style={{ width: `${topCropRecommendation.score}%` }} />
-              </div>
-              <p className="form-hint" style={{ marginTop: 'var(--space-xs)' }}>Suitability: {topCropRecommendation.score}/100</p>
-              <p style={{ marginTop: 'var(--space-sm)' }}>{topCropRecommendation.explanation}</p>
-              <Button to={`/crops/${topCropRecommendation.crop.id}`} variant="secondary" size="sm" style={{ marginTop: 'var(--space-md)' }}>
-                View crop <ArrowRight size={14} />
-              </Button>
-            </Card>
-          ) : (
-            <EmptyState
-              icon={Sprout}
-              title="No recommendation yet"
-              description="Complete your farm profile to see a personalized crop recommendation."
-              action={
-                <Button to="/farmer/profile" size="sm">
-                  Complete farm profile
-                </Button>
-              }
-            />
-          )}
-        </div>
-      </div>
-
-      <div className="section">
-        <div className="container">
-          <SectionHeader eyebrow="Stay ahead" title="Upcoming farm tasks" />
-          {upcomingTasks.length === 0 ? (
-            <EmptyState icon={ClipboardList} title="No upcoming tasks" description="Add tasks in your farm planner to see them here." />
-          ) : (
-            <Card style={{ padding: 0, overflow: 'hidden' }}>
-              {upcomingTasks.map((t, i) => (
-                <div
-                  key={t.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    gap: 'var(--space-md)',
-                    padding: 'var(--space-md) var(--space-lg)',
-                    borderTop: i === 0 ? 'none' : '1px solid var(--color-border)',
-                  }}
-                >
-                  <span style={{ fontWeight: 600 }}>{t.title}</span>
-                  <span className="form-hint">
-                    {new Date(t.dueDate).toLocaleDateString('en-IN')} · {t.type}
-                  </span>
-                </div>
-              ))}
-            </Card>
-          )}
-          <Button to="/planner" variant="ghost" size="sm" style={{ marginTop: 'var(--space-md)' }}>
-            Open Farm Planner <ArrowRight size={14} />
+      {/* Farm summary */}
+      <Section
+        className="page-section--flush"
+        title="Farm summary"
+        actions={
+          <Button to="/farmer/profile" variant="ghost" size="sm" icon={ArrowRight} iconPosition="right">
+            {farmSummary.profileComplete ? 'Edit farm profile' : 'Complete farm profile'}
           </Button>
+        }
+      >
+        {!farmSummary.profileComplete && (
+          <p className="notice">
+            <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" />
+            Add your soil type and water availability to unlock crop recommendations and profit estimates.
+          </p>
+        )}
+        <div className="stat-grid">
+          <StatCard icon={MapPin} label="Location" value={notSet(farmSummary.location)} meta={farmSummary.farmName || undefined} />
+          <StatCard icon={Ruler} label="Land area" value={notSet(farmSummary.landAreaAcres, ' acres')} />
+          <StatCard icon={Mountain} label="Soil type" value={notSet(farmSummary.soilType)} />
+          <StatCard icon={Droplets} label="Water availability" value={notSet(farmSummary.waterAvailability)} />
         </div>
-      </div>
+      </Section>
 
-      <div className="section section--cream">
-        <div className="container">
-          <SectionHeader eyebrow="Recent activity" title="What's happening" />
-          <div className="grid-2">
-            <Card>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <CloudSun size={18} /> Weather
-              </h3>
-              {weather ? (
-                <>
-                  <p style={{ fontSize: 'var(--font-size-xl)', fontWeight: 800, marginTop: 'var(--space-sm)' }}>
-                    {Math.round(weather.temperatureC)}°C - {weather.description}
-                  </p>
-                  <p className="form-hint">{weather.topInsight}</p>
-                  {weather.alertCount > 0 && (
-                    <p className="form-error" style={{ marginTop: 'var(--space-sm)' }}>{weather.alertCount} weather alert(s)</p>
-                  )}
-                  <Button to="/weather" variant="ghost" size="sm" style={{ marginTop: 'var(--space-sm)' }}>
-                    View full forecast <ArrowRight size={14} />
-                  </Button>
-                </>
-              ) : (
-                <p className="form-hint" style={{ marginTop: 'var(--space-sm)' }}>Weather is currently unavailable.</p>
-              )}
-            </Card>
+      {/* The two UZHIRO pillars */}
+      <Section
+        title="What can UZHIRO help you with?"
+        description="Plan your farm with better information, and find labour when you need it."
+      >
+        <div className="pillar-grid">
+          <div className="pillar-panel pillar-panel--farm">
+            <div className="pillar-panel__head">
+              <span className="icon-tile" aria-hidden="true">
+                <Brain size={20} strokeWidth={2} />
+              </span>
+              <div>
+                <span className="eyebrow eyebrow--farm">Farm Intelligence</span>
+                <p>Decide what to grow, what it will cost, and what to do next.</p>
+              </div>
+            </div>
+            <div className="pillar-panel__actions">
+              {FARM_ACTIONS.map((a) => (
+                <ActionCard key={a.to} {...a} tone="farm" />
+              ))}
+            </div>
+          </div>
 
-            <Card>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Users size={18} /> Recent labour requests
-              </h3>
-              {recentHiringRequests.length === 0 ? (
-                <p className="form-hint" style={{ marginTop: 'var(--space-sm)' }}>No hiring requests yet.</p>
-              ) : (
-                <ul style={{ marginTop: 'var(--space-sm)', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
+          <div className="pillar-panel pillar-panel--labour">
+            <div className="pillar-panel__head">
+              <span className="icon-tile icon-tile--labour" aria-hidden="true">
+                <Handshake size={20} strokeWidth={2} />
+              </span>
+              <div>
+                <span className="eyebrow eyebrow--labour">Labour Connection</span>
+                <p>Find reliable agricultural workers by location, availability and wage.</p>
+              </div>
+            </div>
+            <div className="pillar-panel__actions pillar-panel__actions--single">
+              {LABOUR_ACTIONS.map((a) => (
+                <ActionCard key={a.to} {...a} tone="labour" />
+              ))}
+            </div>
+            {recentHiringRequests.length > 0 && (
+              <div className="pillar-panel__recent">
+                <span className="meta">
+                  Recent requests{pendingRequests > 0 ? ` · ${pendingRequests} pending` : ''}
+                </span>
+                <ul className="mini-list">
                   {recentHiringRequests.map((r) => (
-                    <li key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-sm)' }}>
-                      <span>{r.labourerName} - {r.workType}</span>
+                    <li key={r.id}>
+                      <span>
+                        <strong>{r.labourerName}</strong> · {r.workType}
+                      </span>
                       <StatusBadge status={r.status} />
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      </Section>
+
+      {/* Recommendation + insight */}
+      <Section title="Recommended for your farm">
+        <div className="insight-grid">
+          <Card className="insight-card">
+            <Card.Header>
+              <Card.Title icon={Sprout}>Top crop match</Card.Title>
+            </Card.Header>
+            {topCropRecommendation ? (
+              <>
+                <div className="insight-card__headline">
+                  <IconTile fallback="crop" size="lg" />
+                  <div>
+                    <h3 className="item-card__title">{topCropRecommendation.crop.name}</h3>
+                    <StatusBadge status={topCropRecommendation.level} label={`${topCropRecommendation.level} suitability`} />
+                  </div>
+                </div>
+                <div className="crop-rec__score">
+                  <div className="progress-bar" aria-hidden="true">
+                    <div className="progress-bar__fill" style={{ width: `${topCropRecommendation.score}%` }} />
+                  </div>
+                  <span className="meta">
+                    Suitability score <strong>{topCropRecommendation.score}/100</strong>
+                  </span>
+                </div>
+                <p className="item-card__body">{topCropRecommendation.explanation}</p>
+                <Card.Footer>
+                  <Button to={`/crops/${topCropRecommendation.crop.id}`} variant="secondary" size="sm" icon={ArrowRight} iconPosition="right">
+                    View details
+                  </Button>
+                  <Button to="/crops" variant="ghost" size="sm">
+                    See all crops
+                  </Button>
+                </Card.Footer>
+              </>
+            ) : (
+              <EmptyState
+                icon={Sprout}
+                title="No recommendation yet"
+                description="Complete your farm profile to see a personalized crop recommendation."
+                action={
+                  <Button to="/farmer/profile" size="sm">
+                    Complete farm profile
+                  </Button>
+                }
+              />
+            )}
+          </Card>
+
+          <div className="stack">
+            <Card>
+              <Card.Header>
+                <Card.Title icon={Wallet}>Estimated profit</Card.Title>
+              </Card.Header>
+              {financialSummary ? (
+                <>
+                  <p className="big-number">{currency(financialSummary.estimatedProfit)}</p>
+                  <p className="meta">
+                    for {financialSummary.crop.name} on your land · investment {currency(financialSummary.estimatedInvestment)} · revenue{' '}
+                    {currency(financialSummary.expectedRevenue)}
+                  </p>
+                  {financialSummary.disclaimer && <p className="form-hint">{financialSummary.disclaimer}</p>}
+                  <Card.Footer>
+                    <Button to="/profit" variant="secondary" size="sm" icon={ArrowRight} iconPosition="right">
+                      Open Cost & Profit
+                    </Button>
+                  </Card.Footer>
+                </>
+              ) : (
+                <p className="meta">Set your land area and complete your farm profile to see an estimate.</p>
               )}
-              <Button to="/hiring" variant="ghost" size="sm" style={{ marginTop: 'var(--space-sm)' }}>
-                View all requests <ArrowRight size={14} />
-              </Button>
             </Card>
 
             <Card>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <BookOpen size={18} /> Learning recommendations
-              </h3>
-              <ul style={{ marginTop: 'var(--space-sm)', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-                {learningRecommendations.map((a) => (
-                  <li key={a.id}>
-                    <Link to={`/learning/${a.id}`} style={{ fontWeight: 600 }}>{a.title}</Link>{' '}
-                    <span className="form-hint">({a.category})</span>
-                  </li>
-                ))}
-              </ul>
-              <Button to="/learning" variant="ghost" size="sm" style={{ marginTop: 'var(--space-sm)' }}>
-                Browse Learning Hub <ArrowRight size={14} />
-              </Button>
-            </Card>
-
-            <Card>
-              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <Landmark size={18} /> Government schemes
-              </h3>
-              <p className="form-hint" style={{ marginTop: 'var(--space-sm)' }}>
-                Discover financial support, insurance and irrigation programs for farmers.
-              </p>
-              <Button to="/schemes" variant="ghost" size="sm" style={{ marginTop: 'var(--space-sm)' }}>
-                Browse schemes <ArrowRight size={14} />
-              </Button>
+              <Card.Header>
+                <Card.Title icon={CloudSun}>Farming insight</Card.Title>
+              </Card.Header>
+              {weather ? (
+                <>
+                  <p className="weather-inline">
+                    <strong>{Math.round(weather.temperatureC)}°C</strong> {weather.description}
+                  </p>
+                  {weather.topInsight && <p className="item-card__body">{weather.topInsight}</p>}
+                  {weather.alertCount > 0 && (
+                    <p className="notice notice--warning">
+                      <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" />
+                      {weather.alertCount} weather alert{weather.alertCount === 1 ? '' : 's'}
+                    </p>
+                  )}
+                  <Card.Footer>
+                    <Button to="/weather" variant="ghost" size="sm" icon={ArrowRight} iconPosition="right">
+                      View full forecast
+                    </Button>
+                  </Card.Footer>
+                </>
+              ) : (
+                <p className="meta">Weather is currently unavailable.</p>
+              )}
             </Card>
           </div>
         </div>
-      </div>
-    </>
+      </Section>
+
+      {/* Upcoming tasks */}
+      <Section
+        title="Upcoming farm tasks"
+        actions={
+          <Button to="/planner" variant="ghost" size="sm" icon={ArrowRight} iconPosition="right">
+            Open Farm Planner
+          </Button>
+        }
+      >
+        {upcomingTasks.length === 0 ? (
+          <Card>
+            <EmptyState
+              icon={CalendarCheck}
+              title="No upcoming tasks"
+              description="Add tasks in your farm planner to see them here."
+              action={
+                <Button to="/planner" variant="secondary" size="sm">
+                  Plan a task
+                </Button>
+              }
+            />
+          </Card>
+        ) : (
+          <Card className="list-card">
+            <ul className="task-list">
+              {upcomingTasks.map((t) => (
+                <li key={t.id}>
+                  <span className="task-list__title">{t.title}</span>
+                  <span className="chip">{t.type}</span>
+                  <span className="meta">{formatDate(t.dueDate)}</span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
+      </Section>
+
+      {/* Quick actions */}
+      <Section title="Quick actions">
+        <div className="quick-grid">
+          {QUICK_ACTIONS.map((a) => (
+            <Card as={Link} to={a.to} hover key={a.label} className="quick-action">
+              <span className={`icon-tile${a.tone === 'labour' ? ' icon-tile--labour' : ''}`} aria-hidden="true">
+                <a.icon size={20} strokeWidth={2} />
+              </span>
+              {a.label}
+            </Card>
+          ))}
+        </div>
+      </Section>
+
+      {/* Secondary: keep learning */}
+      <Section title="Keep learning">
+        <div className="two-col">
+          <Card>
+            <Card.Header>
+              <Card.Title icon={BookOpen}>Recommended reading</Card.Title>
+            </Card.Header>
+            {learningRecommendations.length === 0 ? (
+              <p className="meta">No recommendations right now.</p>
+            ) : (
+              <ul className="mini-list">
+                {learningRecommendations.map((a) => (
+                  <li key={a.id}>
+                    <Link to={`/learning/${a.id}`}>{a.title}</Link>
+                    <span className="meta">{a.category}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Card.Footer>
+              <Button to="/learning" variant="ghost" size="sm" icon={ArrowRight} iconPosition="right">
+                Browse Learning Hub
+              </Button>
+            </Card.Footer>
+          </Card>
+
+          <Card>
+            <Card.Header>
+              <Card.Title icon={Landmark}>Government schemes</Card.Title>
+            </Card.Header>
+            <p className="item-card__body">Discover financial support, insurance and irrigation programs for farmers.</p>
+            <Card.Footer>
+              <Button to="/schemes" variant="ghost" size="sm" icon={ArrowRight} iconPosition="right">
+                Browse schemes
+              </Button>
+            </Card.Footer>
+          </Card>
+        </div>
+      </Section>
+    </Page>
   );
 }
 
@@ -269,66 +367,94 @@ function LabourerDashboard({ data }) {
   const { profileSummary, recentHiringRequests } = data;
 
   return (
-    <>
-      <PageHero
-        compact
-        image={HERO_IMAGE}
-        eyebrow="Labour Marketplace"
-        title={<>Welcome back, {data.welcomeName}.</>}
+    <Page>
+      <PageHeader
+        eyebrow="Labour Connection"
+        pillar="labour"
+        title={`${greeting()}, ${data.welcomeName}`}
         description="Track your hiring requests and keep your profile up to date so farmers can find you."
+        actions={
+          <Button to="/hiring" icon={ClipboardList}>
+            View hiring requests
+          </Button>
+        }
       />
 
-      <div className="section">
-        <div className="container">
-          <div className="grid-auto">
-            <Card>
-              <h2>My profile</h2>
-              {profileSummary ? (
-                <ul style={{ marginTop: 'var(--space-sm)', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                  <li>Location: {profileSummary.location}</li>
-                  <li>Work types: {profileSummary.workTypes.join(', ')}</li>
-                  <li>Daily wage: ₹{profileSummary.dailyWage}</li>
-                  <li>Availability: {profileSummary.availability ? 'Available' : 'Not available'}</li>
-                  <li>Rating: {profileSummary.rating != null ? `★ ${profileSummary.rating.toFixed(1)} (${profileSummary.ratingCount})` : 'No ratings yet'}</li>
-                </ul>
-              ) : (
-                <p className="form-hint">Profile not found.</p>
-              )}
-              <Button to="/labourer/profile" variant="secondary" size="sm" style={{ marginTop: 'var(--space-md)' }}>
+      <div className="insight-grid">
+        <Card>
+          <Card.Header
+            actions={
+              <Button to="/labourer/profile" variant="secondary" size="sm">
                 Edit profile
               </Button>
-            </Card>
+            }
+          >
+            <Card.Title icon={UserCircle}>My profile</Card.Title>
+          </Card.Header>
+          {profileSummary ? (
+            <dl className="detail-list">
+              <div className="detail-list__row">
+                <dt>Location</dt>
+                <dd>{profileSummary.location}</dd>
+              </div>
+              <div className="detail-list__row">
+                <dt>Work types</dt>
+                <dd>{profileSummary.workTypes.join(', ')}</dd>
+              </div>
+              <div className="detail-list__row">
+                <dt>Daily wage</dt>
+                <dd>₹{profileSummary.dailyWage}</dd>
+              </div>
+              <div className="detail-list__row">
+                <dt>Availability</dt>
+                <dd>
+                  <StatusBadge status={profileSummary.availability ? 'available' : 'unavailable'} />
+                </dd>
+              </div>
+              <div className="detail-list__row">
+                <dt>Rating</dt>
+                <dd>
+                  {profileSummary.rating != null
+                    ? `★ ${profileSummary.rating.toFixed(1)} (${profileSummary.ratingCount})`
+                    : 'No ratings yet'}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="meta">Profile not found.</p>
+          )}
+        </Card>
 
-            <Card>
-              <h2>Recent hiring requests</h2>
-              {recentHiringRequests.length === 0 ? (
-                <p className="form-hint" style={{ marginTop: 'var(--space-sm)' }}>No hiring requests yet.</p>
-              ) : (
-                <ul style={{ marginTop: 'var(--space-sm)', listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 'var(--space-sm)' }}>
-                  {recentHiringRequests.map((r) => (
-                    <li key={r.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 'var(--space-sm)' }}>
-                      <span>{r.farmerName} - {r.workType}</span>
-                      <StatusBadge status={r.status} />
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <Button to="/hiring" variant="secondary" size="sm" style={{ marginTop: 'var(--space-md)' }}>
+        <div className="stack">
+          <Card>
+            <Card.Header>
+              <Card.Title icon={ClipboardList}>Recent hiring requests</Card.Title>
+            </Card.Header>
+            {recentHiringRequests.length === 0 ? (
+              <p className="meta">No hiring requests yet.</p>
+            ) : (
+              <ul className="mini-list">
+                {recentHiringRequests.map((r) => (
+                  <li key={r.id}>
+                    <span>
+                      <strong>{r.farmerName}</strong> · {r.workType}
+                    </span>
+                    <StatusBadge status={r.status} />
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Card.Footer>
+              <Button to="/hiring" variant="ghost" size="sm" icon={ArrowRight} iconPosition="right">
                 View all requests
               </Button>
-            </Card>
+            </Card.Footer>
+          </Card>
 
-            <Card>
-              <h2>Learning Hub</h2>
-              <p className="form-hint" style={{ marginTop: 'var(--space-sm)' }}>Browse general farming guidance and awareness content.</p>
-              <Button to="/learning" variant="secondary" size="sm" style={{ marginTop: 'var(--space-md)' }}>
-                Browse Learning Hub
-              </Button>
-            </Card>
-          </div>
+          <ActionCard to="/learning" icon={BookOpen} title="Learning Hub" description="Browse practical farming guidance." />
         </div>
       </div>
-    </>
+    </Page>
   );
 }
 
@@ -353,7 +479,7 @@ function Dashboard() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err.message);
+          setError(friendlyError(err, 'Your dashboard'));
           setStatus('error');
         }
       });
@@ -367,14 +493,22 @@ function Dashboard() {
   }
 
   if (status === 'loading') {
-    return <LoadingState label="Loading your dashboard..." />;
+    return (
+      <Page>
+        <PageHeader title={`${greeting()}, ${user.name.split(' ')[0]}`} description="Your farm at a glance." />
+        <LoadingState label="Loading your dashboard..." />
+      </Page>
+    );
   }
 
   if (status === 'error') {
     return (
-      <div className="container error-state">
-        <p>Unable to load your dashboard. {error}</p>
-      </div>
+      <Page>
+        <PageHeader title={`${greeting()}, ${user.name.split(' ')[0]}`} description="Your farm at a glance." />
+        <Card>
+          <ErrorState title="Unable to load your dashboard" message={error} />
+        </Card>
+      </Page>
     );
   }
 

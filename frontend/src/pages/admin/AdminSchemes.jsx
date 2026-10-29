@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import LoadingState from '../../components/LoadingState';
+import { ErrorState } from '../../components/EmptyState';
 import { useAuth } from '../../hooks/useAuth';
 import { listAdminSchemes, createAdminScheme, updateAdminScheme, deleteAdminScheme } from '../../services/adminService';
 
@@ -88,14 +90,13 @@ function AdminSchemes() {
 
   return (
     <>
-      <h2>Government schemes</h2>
       <p className="form-hint">
         Only add real schemes with a verified official source URL. Never invent eligibility or benefit details.
       </p>
 
-      <div className="card" style={{ maxWidth: 640, marginTop: 'var(--space-md)' }}>
+      <div className="card admin-form-card">
         <h3>{editingId ? 'Edit scheme' : 'Add scheme'}</h3>
-        <form className="form" style={{ maxWidth: '100%' }} onSubmit={handleSubmit}>
+        <form className="form" onSubmit={handleSubmit}>
           <div className="form-field">
             <label>Name</label>
             <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
@@ -131,7 +132,7 @@ function AdminSchemes() {
 
           {saveError && <p className="form-error">{saveError}</p>}
 
-          <div style={{ display: 'flex', gap: 'var(--space-sm)' }}>
+          <div className="form-actions">
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving...' : editingId ? 'Save changes' : 'Add scheme'}
             </button>
@@ -144,16 +145,16 @@ function AdminSchemes() {
         </form>
       </div>
 
-      {status === 'loading' && <p style={{ marginTop: 'var(--space-lg)' }}>Loading schemes...</p>}
-      {status === 'error' && <p className="form-error">Unable to load schemes. {error}</p>}
+      {status === 'loading' && <LoadingState label="Loading schemes..." />}
+      {status === 'error' && <ErrorState title="Unable to load schemes" message={error} />}
 
       {status === 'ready' && (
-        <div className="crop-grid" style={{ marginTop: 'var(--space-lg)' }}>
+        <div className="item-grid admin-list">
           {schemes.map((s) => (
-            <div className="card crop-card" key={s._id}>
-              <span className="crop-card__name">{s.name}</span>
-              <p className="crop-card__explanation">{s.description}</p>
-              <div className="crop-card__footer">
+            <div className="card item-card" key={s._id}>
+              <span className="item-card__title">{s.name}</span>
+              <p className="item-card__body clamp-3">{s.description}</p>
+              <div className="item-card__footer">
                 <button type="button" className="btn btn-secondary" onClick={() => startEdit(s)}>Edit</button>
                 <button type="button" className="btn btn-secondary" onClick={() => handleDelete(s._id)}>Delete</button>
               </div>

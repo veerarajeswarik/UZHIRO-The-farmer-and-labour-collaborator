@@ -31,8 +31,21 @@ function checkJwtSecret() {
   }
 }
 
+/**
+ * In production CLIENT_URL must name the deployed frontend (e.g. the Netlify
+ * URL) - without it CORS would only allow localhost and every browser
+ * request would fail with "Failed to fetch".
+ */
+function checkClientUrl() {
+  if (process.env.NODE_ENV === 'production' && !process.env.CLIENT_URL) {
+    console.error('[server] CLIENT_URL is required in production (your frontend URL, e.g. https://your-site.netlify.app).');
+    process.exit(1);
+  }
+}
+
 async function start() {
   checkJwtSecret();
+  checkClientUrl();
   await connectDB();
   app.listen(PORT, () => {
     console.log(`[server] UZHIRO API listening on port ${PORT} (${process.env.NODE_ENV || 'development'})`);

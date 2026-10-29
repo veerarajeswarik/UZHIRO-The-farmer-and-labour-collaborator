@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Droplets, CloudRain, Wind } from 'lucide-react';
+import { Droplets, CloudRain, Wind, Thermometer, AlertTriangle, Lightbulb, MapPin, Search } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getWeather } from '../services/weatherService';
-import PageHero from '../components/PageHero';
+import { friendlyError } from '../services/errors';
+import Page, { Section } from '../components/Page';
+import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
+import { ErrorState } from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 
 const HERO_IMAGE =
-  'https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=1600&q=80';
+  'https://images.unsplash.com/photo-1470240731273-7821a6eeb6bd?auto=format&fit=crop&w=1200&q=80';
 
-function formatDate(dateStr) {
+function formatDay(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
@@ -30,7 +33,7 @@ function Weather() {
         setStatus('ready');
       })
       .catch((err) => {
-        setError(err.message);
+        setError(friendlyError(err, 'Weather for this location'));
         setStatus('error');
       });
   }
@@ -47,114 +50,127 @@ function Weather() {
   }
 
   return (
-    <div>
-      <PageHero
-        compact
-        image={HERO_IMAGE}
-        eyebrow="Weather"
-        title={`Conditions for ${activeLocation || user.location}`}
-        description="Insights are general guidance, not a guarantee - always check local conditions before making farming decisions."
-        floating={
-          status === 'ready' && data ? (
-            <div className="glass-card">
-              <div style={{ fontSize: '0.8rem', opacity: 0.8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                {data.location.name}
-                {data.location.admin1 ? `, ${data.location.admin1}` : ''}
-              </div>
-              <div style={{ fontSize: 'var(--font-size-3xl)', fontWeight: 800, marginTop: '0.25rem' }}>
-                {Math.round(data.current.temperatureC)}°C
-              </div>
-              <div style={{ marginTop: '0.15rem' }}>{data.current.description}</div>
-              <div style={{ display: 'flex', gap: '1rem', marginTop: 'var(--space-md)', flexWrap: 'wrap', fontSize: '0.85rem' }}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Droplets size={14} /> {data.current.humidityPct}%
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <CloudRain size={14} /> {data.current.rainMm} mm
-                </span>
-                <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <Wind size={14} /> {Math.round(data.current.windKph)} km/h
-                </span>
-              </div>
-            </div>
-          ) : null
+    <Page>
+      <PageHeader
+        eyebrow="Tools"
+        pillar="neutral"
+        title="Weather"
+        description={`Conditions and a 5-day forecast for ${activeLocation || user.location}. Insights are general guidance - always check local conditions.`}
+        actions={
+          <form className="inline-search" onSubmit={handleSubmit} role="search">
+            <label htmlFor="location" className="visually-hidden">
+              Check another location
+            </label>
+            <input id="location" placeholder="Check another location" value={locationInput} onChange={(e) => setLocationInput(e.target.value)} />
+            <button type="submit" className="btn btn-secondary">
+              <Search size={16} strokeWidth={2} aria-hidden="true" />
+              Check
+            </button>
+          </form>
         }
       />
-
-      <div className="container" style={{ paddingBottom: '3rem', paddingTop: 'var(--space-xl)' }}>
-
-      <form className="form" style={{ maxWidth: 400, flexDirection: 'row', alignItems: 'flex-end', gap: 'var(--space-sm)' }} onSubmit={handleSubmit}>
-        <div className="form-field" style={{ flex: 1 }}>
-          <label htmlFor="location">Check another location</label>
-          <input id="location" placeholder={user.location} value={locationInput} onChange={(e) => setLocationInput(e.target.value)} />
-        </div>
-        <button type="submit" className="btn btn-secondary">
-          Check
-        </button>
-      </form>
 
       {status === 'loading' && <LoadingState label="Loading live weather..." />}
 
       {status === 'error' && (
-        <p className="form-error" style={{ marginTop: 'var(--space-lg)', maxWidth: 480 }}>
-          Unable to load weather. {error}
-        </p>
+        <Card>
+          <ErrorState title="Unable to load weather" message={error} />
+        </Card>
       )}
 
       {status === 'ready' && data && (
-        <div style={{ marginTop: 'var(--space-lg)' }}>
-          <p className="form-hint">
-            As of {new Date(data.current.observedAt).toLocaleString('en-IN')} · Source: {data.source}
-          </p>
+        <>
+          <div className="weather-now">
+            <Card className="weather-now__card">
+              <span className="weather-now__place">
+                <MapPin size={15} strokeWidth={2} aria-hidden="true" />
+                {data.location.name}
+                {data.location.admin1 ? `, ${data.location.admin1}` : ''}
+              </span>
+              <div className="weather-now__temp">
+                <Thermometer size={28} strokeWidth={2} aria-hidden="true" />
+                {Math.round(data.current.temperatureC)}°C
+              </div>
+              <p className="weather-now__desc">{data.current.description}</p>
+              <dl className="weather-now__facts">
+                <div>
+                  <dt>
+                    <Droplets size={15} strokeWidth={2} aria-hidden="true" /> Humidity
+                  </dt>
+                  <dd>{data.current.humidityPct}%</dd>
+                </div>
+                <div>
+                  <dt>
+                    <Wind size={15} strokeWidth={2} aria-hidden="true" /> Wind
+                  </dt>
+                  <dd>{Math.round(data.current.windKph)} km/h</dd>
+                </div>
+                <div>
+                  <dt>
+                    <CloudRain size={15} strokeWidth={2} aria-hidden="true" /> Rain
+                  </dt>
+                  <dd>{data.current.rainMm} mm</dd>
+                </div>
+              </dl>
+              <p className="meta">
+                As of {new Date(data.current.observedAt).toLocaleString('en-IN')} · Source: {data.source}
+              </p>
+            </Card>
+            <div className="weather-now__image" style={{ backgroundImage: `url(${HERO_IMAGE})` }} role="presentation" />
+          </div>
 
           {data.alerts.length > 0 && (
-            <Card style={{ maxWidth: 640, marginTop: 'var(--space-lg)', borderColor: 'var(--color-warning)' }}>
-              <h2>Weather alerts</h2>
-              <ul style={{ marginTop: 'var(--space-sm)' }}>
-                {data.alerts.map((a, i) => (
-                  <li key={i} className={a.level === 'warning' ? 'form-error' : 'form-hint'} style={{ marginTop: 'var(--space-xs)' }}>
-                    {a.message}
-                  </li>
+            <Section title="Weather alerts">
+              <Card className="card--warning">
+                <ul className="check-list check-list--warn">
+                  {data.alerts.map((a, i) => (
+                    <li key={i} className={a.level === 'warning' ? 'alert-strong' : ''}>
+                      {a.level === 'warning' && <AlertTriangle size={14} strokeWidth={2} aria-hidden="true" />} {a.message}
+                    </li>
+                  ))}
+                </ul>
+              </Card>
+            </Section>
+          )}
+
+          <Section title="Farming insights">
+            <Card>
+              <Card.Header>
+                <Card.Title icon={Lightbulb}>What this weather means for your farm</Card.Title>
+              </Card.Header>
+              <ul className="check-list">
+                {data.insights.map((insight, i) => (
+                  <li key={i}>{insight}</li>
                 ))}
               </ul>
             </Card>
-          )}
+          </Section>
 
-          <Card style={{ maxWidth: 640, marginTop: 'var(--space-lg)' }}>
-            <h2>Farming insights</h2>
-            <ul style={{ marginTop: 'var(--space-sm)' }}>
-              {data.insights.map((insight, i) => (
-                <li key={i} style={{ marginTop: 'var(--space-xs)' }}>
-                  {insight}
-                </li>
+          <Section title="5-day forecast">
+            <div className="forecast-grid">
+              {data.forecast.map((day) => (
+                <Card className="forecast-day" key={day.date}>
+                  <span className="forecast-day__date">{formatDay(day.date)}</span>
+                  <span className="forecast-day__desc">{day.description}</span>
+                  <span className="forecast-day__temp">
+                    <strong>{Math.round(day.tempMaxC)}°</strong> / {Math.round(day.tempMinC)}°C
+                  </span>
+                  <span className="meta">
+                    <CloudRain size={13} strokeWidth={2} aria-hidden="true" /> {day.precipitationProbabilityPct}% · {day.precipitationSumMm} mm
+                  </span>
+                  <span className="meta">
+                    <Wind size={13} strokeWidth={2} aria-hidden="true" /> up to {Math.round(day.windMaxKph)} km/h
+                  </span>
+                </Card>
               ))}
-            </ul>
-          </Card>
-
-          <h2 style={{ marginTop: 'var(--space-xl)' }}>5-day forecast</h2>
-          <div className="crop-grid" style={{ marginTop: 'var(--space-md)' }}>
-            {data.forecast.map((day) => (
-              <div className="card card-hover" key={day.date}>
-                <p style={{ fontWeight: 700 }}>{formatDate(day.date)}</p>
-                <p>{day.description}</p>
-                <p>
-                  {Math.round(day.tempMinC)}°C - {Math.round(day.tempMaxC)}°C
-                </p>
-                <p className="form-hint">
-                  Rain chance {day.precipitationProbabilityPct}% ({day.precipitationSumMm} mm) · Wind up to{' '}
-                  {Math.round(day.windMaxKph)} km/h
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <p className="form-hint" style={{ marginTop: 'var(--space-xl)' }}>
-            Fetched {new Date(data.fetchedAt).toLocaleString('en-IN')} · Source: {data.source}
-          </p>
-        </div>
+            </div>
+            <p className="form-hint page-disclaimer">
+              Fetched {new Date(data.fetchedAt).toLocaleString('en-IN')} · Source: {data.source}
+            </p>
+          </Section>
+        </>
       )}
-      </div>
-    </div>
+    </Page>
   );
 }
 

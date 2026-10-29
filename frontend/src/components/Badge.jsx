@@ -19,6 +19,10 @@ const STATUS_MAP = {
   high: { variant: 'success', label: 'High' },
   medium: { variant: 'warning', label: 'Medium' },
   low: { variant: 'danger', label: 'Low' },
+  available: { variant: 'success', label: 'Available' },
+  unavailable: { variant: 'neutral', label: 'Unavailable' },
+  required: { variant: 'success', label: 'Required' },
+  optional: { variant: 'neutral', label: 'Optional' },
 };
 
 export function StatusBadge({ status, label }) {

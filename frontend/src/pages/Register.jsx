@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { friendlyError } from '../services/errors';
 
 const WORK_TYPES = ['Harvesting', 'Planting', 'Weeding', 'Irrigation', 'Ploughing', 'General Farm Work'];
 
@@ -66,7 +67,7 @@ function Register() {
       await register(payload);
       navigate('/dashboard', { replace: true });
     } catch (err) {
-      setError(err.message);
+      setError(friendlyError(err, 'Registration'));
     } finally {
       setSubmitting(false);
     }

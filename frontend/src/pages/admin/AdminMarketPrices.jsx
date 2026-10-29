@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import LoadingState from '../../components/LoadingState';
+import { ErrorState } from '../../components/EmptyState';
 import { useAuth } from '../../hooks/useAuth';
 import { listAdminMarketPrices, createAdminMarketPrice, deleteAdminMarketPrice } from '../../services/adminService';
 
@@ -61,15 +63,14 @@ function AdminMarketPrices() {
 
   return (
     <>
-      <h2>Market data</h2>
       <p className="form-hint">
         Automatically fetched Agmarknet prices (Phase F) are cached here too. Manual entries you add are clearly
         labeled "Manually entered by admin" wherever they're shown to farmers - never presented as live data.
       </p>
 
-      <div className="card" style={{ maxWidth: 560, marginTop: 'var(--space-md)' }}>
+      <div className="card admin-form-card">
         <h3>Add a manual price record</h3>
-        <form className="form" style={{ maxWidth: '100%' }} onSubmit={handleSubmit}>
+        <form className="form" onSubmit={handleSubmit}>
           <div className="form-field">
             <label>Crop name (must match a crop in the catalog)</label>
             <input required value={form.cropName} onChange={(e) => setForm((f) => ({ ...f, cropName: e.target.value }))} />
@@ -103,11 +104,11 @@ function AdminMarketPrices() {
         </form>
       </div>
 
-      {status === 'loading' && <p style={{ marginTop: 'var(--space-lg)' }}>Loading market prices...</p>}
-      {status === 'error' && <p className="form-error">Unable to load market prices. {error}</p>}
+      {status === 'loading' && <LoadingState label="Loading market prices..." />}
+      {status === 'error' && <ErrorState title="Unable to load market prices" message={error} />}
 
       {status === 'ready' && (
-        <div className="compare-table-wrap" style={{ marginTop: 'var(--space-lg)' }}>
+        <div className="table-wrap admin-table-wrap">
           <table className="compare-table">
             <thead>
               <tr>

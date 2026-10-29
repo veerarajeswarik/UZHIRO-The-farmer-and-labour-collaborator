@@ -1,13 +1,25 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { useLocation, useParams } from 'react-router-dom';
+import { MapPin, UserRound, History, Handshake, Send, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { getLabourerById } from '../services/labourerService';
 import { createHiringRequest } from '../services/hiringService';
+import { friendlyError } from '../services/errors';
+import Page, { Section } from '../components/Page';
+import PageHeader from '../components/PageHeader';
+import Card from '../components/Card';
+import Button from '../components/Button';
+import { StatusBadge } from '../components/Badge';
+import { RatingText } from '../components/LabourCard';
+import EmptyState, { ErrorState } from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
+import { initials } from '../utils/format';
+
+const BACK = { to: '/labourers', label: 'Back to Labour Marketplace' };
 
 function LabourerDetail() {
   const { id } = useParams();
+  const { hash } = useLocation();
   const { token } = useAuth();
 
   const [status, setStatus] = useState('loading');
@@ -22,7 +34,7 @@ function LabourerDetail() {
 
   useEffect(() => {
     let cancelled = false;
-    getLabourerById(id)
+    getLabourerById(token, id)
       .then((d) => {
         if (cancelled) return;
         setLabourer(d.labourer);
@@ -31,13 +43,21 @@ function LabourerDetail() {
       })
       .catch((err) => {
         if (cancelled) return;
-        setError(err.message);
+        setError(friendlyError(err, 'This labourer'));
         setStatus('error');
       });
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [token, id]);
+
+  // "Send hiring request" on a marketplace card links to #hire - bring the
+  // form into view once the profile has rendered.
+  useEffect(() => {
+    if (status === 'ready' && hash === '#hire') {
+      document.getElementById('hire')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [status, hash]);
 
   function handleChange(e) {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -58,122 +78,212 @@ function LabourerDetail() {
       });
       setSubmitted(true);
     } catch (err) {
-      setSubmitError(err.message);
+      setSubmitError(friendlyError(err, 'This labourer'));
     } finally {
       setSubmitting(false);
     }
   }
 
   if (status === 'loading') {
-    return <LoadingState label="Loading labourer profile..." />;
+    return (
+      <Page>
+        <PageHeader back={BACK} eyebrow="Labour Profile" pillar="labour" title="Loading profile..." />
+        <LoadingState label="Loading labourer profile..." />
+      </Page>
+    );
   }
 
   if (status === 'error') {
     return (
-      <div className="container error-state">
-        <p>Unable to load this labourer. {error}</p>
-      </div>
+      <Page>
+        <PageHeader back={BACK} eyebrow="Labour Profile" pillar="labour" title="Labourer profile" />
+        <Card>
+          <ErrorState
+            title="Unable to load this labourer"
+            message={error}
+            action={
+              <Button to="/labourers" variant="secondary">
+                Back to marketplace
+              </Button>
+            }
+          />
+        </Card>
+      </Page>
     );
   }
 
   return (
-    <div className="container" style={{ padding: '3rem 0' }}>
-      <Link to="/labourers" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
-        <ArrowLeft size={16} strokeWidth={2} /> Back to labour marketplace
-      </Link>
+    <Page>
+      <PageHeader
+        back={BACK}
+        eyebrow="Labour Profile"
+        pillar="labour"
+        title={labourer.name}
+        description={
+          <>
+            <span className="inline-meta">
+              <MapPin size={16} strokeWidth={2} aria-hidden="true" />
+              {labourer.location}
+            </span>
+            <StatusBadge status={labourer.availability ? 'available' : 'unavailable'} label={labourer.availability ? 'Available now' : 'Not currently available'} />
+          </>
+        }
+        actions={
+          !submitted && (
+            <Button to={`/labourers/${id}#hire`} icon={Send}>
+              Hire this worker
+            </Button>
+          )
+        }
+      />
 
-      <h1 style={{ marginTop: 'var(--space-md)' }}>{labourer.name}</h1>
-      <p style={{ color: 'var(--color-text-muted)' }}>{labourer.location}</p>
+      <div className="two-col">
+        <Card>
+          <div className="profile-overview__head">
+            <span className="avatar avatar--lg" aria-hidden="true">
+              {initials(labourer.name)}
+            </span>
+            <div>
+              <Card.Title icon={UserRound}>Profile overview</Card.Title>
+              <RatingText rating={labourer.rating} ratingCount={labourer.ratingCount} isDemoData={labourer.isDemoData} />
+            </div>
+          </div>
+          <dl className="detail-list">
+            <div className="detail-list__row">
+              <dt>Daily wage</dt>
+              <dd>₹{labourer.dailyWage} / day</dd>
+            </div>
+            <div className="detail-list__row">
+              <dt>Experience</dt>
+              <dd>{labourer.experienceYears} years</dd>
+            </div>
+            <div className="detail-list__row">
+              <dt>Availability</dt>
+              <dd>{labourer.availability ? 'Available now' : 'Not currently available'}</dd>
+            </div>
+            <div className="detail-list__row">
+              <dt>Work types</dt>
+              <dd>
+                <span className="chip-row chip-row--end">
+                  {labourer.workTypes.map((w) => (
+                    <span className="chip" key={w}>
+                      {w}
+                    </span>
+                  ))}
+                </span>
+              </dd>
+            </div>
+          </dl>
+        </Card>
 
-      <div className="crop-grid" style={{ marginTop: 'var(--space-lg)' }}>
-        <div className="card">
-          <h2>At a glance</h2>
-          <ul>
-            <li>Work types: {labourer.workTypes.join(', ')}</li>
-            <li>Experience: {labourer.experienceYears} years</li>
-            <li>Daily wage: ₹{labourer.dailyWage}</li>
-            <li>Availability: {labourer.availability ? 'Available now' : 'Not currently available'}</li>
-            <li>
-              Rating:{' '}
-              {labourer.rating != null ? `★ ${labourer.rating.toFixed(1)} (${labourer.ratingCount} reviews)` : 'No ratings yet'}
-              {labourer.isDemoData ? ' (demo data)' : ''}
-            </li>
-          </ul>
-          {labourer.description && <p style={{ marginTop: 'var(--space-sm)' }}>{labourer.description}</p>}
-        </div>
-
-        {labourer.workHistory?.length > 0 && (
-          <div className="card">
-            <h2>Work history</h2>
-            <ul>
+        <Card>
+          <Card.Header>
+            <Card.Title icon={History}>Work history</Card.Title>
+          </Card.Header>
+          {labourer.workHistory?.length > 0 ? (
+            <ol className="timeline">
               {labourer.workHistory.map((h, i) => (
-                <li key={i}>
-                  {h.description} {h.year ? `(${h.year})` : ''}
+                <li key={i} className="timeline__item">
+                  <span className="timeline__year">{h.year || '—'}</span>
+                  <span>{h.description}</span>
                 </li>
               ))}
-            </ul>
-          </div>
-        )}
+            </ol>
+          ) : (
+            <EmptyState title="No work history added yet" description="This labourer hasn't listed previous work." />
+          )}
+        </Card>
       </div>
 
-      <div className="card" style={{ maxWidth: 480, marginTop: 'var(--space-lg)' }}>
-        <h2>Send hiring request</h2>
+      {labourer.description && (
+        <Section title="About">
+          <Card>
+            <p className="prose">{labourer.description}</p>
+          </Card>
+        </Section>
+      )}
 
-        {submitted ? (
-          <>
-            <p className="form-success" style={{ marginTop: 'var(--space-md)' }}>
-              Request sent. Track its status in My Hiring Requests.
-            </p>
-            <Link to="/hiring" className="btn btn-primary" style={{ marginTop: 'var(--space-sm)' }}>
-              View my hiring requests
-            </Link>
-          </>
-        ) : (
-          <form className="form" style={{ maxWidth: '100%', marginTop: 'var(--space-md)' }} onSubmit={handleSubmit}>
-            <div className="form-field">
-              <label htmlFor="workType">Work type</label>
-              <select id="workType" value={workType} onChange={(e) => setWorkType(e.target.value)} required>
-                {labourer.workTypes.map((w) => (
-                  <option key={w} value={w}>
-                    {w}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-field">
-              <label htmlFor="workDate">Work start date</label>
-              <input id="workDate" name="workDate" type="date" required value={form.workDate} onChange={handleChange} />
-            </div>
-            <div className="form-field">
-              <label htmlFor="numberOfDays">Number of days</label>
-              <input
-                id="numberOfDays"
-                name="numberOfDays"
-                type="number"
-                min="1"
-                required
-                value={form.numberOfDays}
-                onChange={handleChange}
-              />
-            </div>
-            <div className="form-field">
-              <label htmlFor="farmLocation">Farm location</label>
-              <input id="farmLocation" name="farmLocation" required value={form.farmLocation} onChange={handleChange} />
-            </div>
-            <div className="form-field">
-              <label htmlFor="message">Message (optional)</label>
-              <textarea id="message" name="message" rows={3} value={form.message} onChange={handleChange} />
-            </div>
+      <Section id="hire" className="hire-section">
+        <Card className="hire-card">
+          <Card.Header>
+            <Card.Title icon={Handshake}>Hire this worker</Card.Title>
+            <Card.Description>
+              Send {labourer.name.split(' ')[0]} a request with your work details. You can track it in Hiring Requests.
+            </Card.Description>
+          </Card.Header>
 
-            {submitError && <p className="form-error">{submitError}</p>}
+          {submitted ? (
+            <div className="success-panel" role="status">
+              <CheckCircle2 size={28} strokeWidth={2} aria-hidden="true" />
+              <div>
+                <strong>Request sent.</strong>
+                <p>Track its status in My Hiring Requests.</p>
+              </div>
+              <Button to="/hiring">View my hiring requests</Button>
+            </div>
+          ) : (
+            <form className="form" onSubmit={handleSubmit}>
+              <div className="form-grid form-grid--2">
+                <div className="form-field">
+                  <label htmlFor="workType">Work type</label>
+                  <select id="workType" value={workType} onChange={(e) => setWorkType(e.target.value)} required>
+                    {labourer.workTypes.map((w) => (
+                      <option key={w} value={w}>
+                        {w}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-field">
+                  <label htmlFor="workDate">Work start date</label>
+                  <input id="workDate" name="workDate" type="date" required value={form.workDate} onChange={handleChange} />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="numberOfDays">Number of days</label>
+                  <input
+                    id="numberOfDays"
+                    name="numberOfDays"
+                    type="number"
+                    min="1"
+                    required
+                    value={form.numberOfDays}
+                    onChange={handleChange}
+                  />
+                </div>
+                <div className="form-field">
+                  <label htmlFor="farmLocation">Farm location</label>
+                  <input id="farmLocation" name="farmLocation" required value={form.farmLocation} onChange={handleChange} />
+                </div>
+                <div className="form-field form-field--full">
+                  <label htmlFor="message">Work requirement / message (optional)</label>
+                  <textarea
+                    id="message"
+                    name="message"
+                    rows={3}
+                    placeholder="e.g. Harvesting 2 acres of paddy, starting early morning."
+                    value={form.message}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
 
-            <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? 'Sending...' : 'Send hiring request'}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
+              {submitError && <p className="form-error">{submitError}</p>}
+
+              <div className="form-actions">
+                <button type="submit" className="btn btn-primary btn-lg" disabled={submitting}>
+                  <Send size={16} strokeWidth={2} aria-hidden="true" />
+                  {submitting ? 'Sending...' : 'Send hiring request'}
+                </button>
+                <span className="meta">
+                  Estimated wage: ₹{labourer.dailyWage}/day × {Number(form.numberOfDays) || 0} day
+                  {Number(form.numberOfDays) === 1 ? '' : 's'}
+                </span>
+              </div>
+            </form>
+          )}
+        </Card>
+      </Section>
+    </Page>
   );
 }
 
